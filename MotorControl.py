@@ -40,24 +40,28 @@ print(get_usb_com_ports_with_serial_numbers())
 #SAP 7, 0, 127    //set Standby current
 
 
-
-STEP_ANGLE = 1.80
-U_STEP = 256
-
 def angleToMicrostep(angle):
     ret = angle /STEP_ANGLE
     ret *= U_STEP
     ret = int(ret)
     return ret
 
+STEP_ANGLE = 1.80
+U_STEP = 256
+MAX_SPEED = 200
+MAX_ACCELERATION = 10
 FULL_ROTATION = angleToMicrostep(360)
+
+
+def microstepToAngle(microstep):
+    angle = microstep / U_STEP
+    return angle
+
 
 
 # stage1 = Trinamic.TMCM1110("COM4")
 # stage2 = Trinamic.TMCMx110("COM4")
 
-MAX_SPEED = 200
-MAX_ACCELERATION = 10
 class MotorController():
     def __init__(self, comport):
         self.fullRotation = 0
@@ -108,18 +112,6 @@ class MotorController():
     def freeMotor(self):
         self.motor.set_axis_parameter(parameter=7, value=0) #standby current
         self.motor.stop()
-    
-    # def setStallGuard(self, sg: int = 8):
-    #     self.motor.set_axis_parameter(axis=0, parameter=174, value=self.stallguardThreshold)   #stallGuard threshold
-
-
-
-tilt = MotorController(comport="COM3")
-roll = MotorController(comport="COM4")
-#Roll Motor Is Master Axes
-#Tilt Angle = Roll + Tilt Angle
-tilt.name = "tilt"
-roll.name = "roll"
 
 
 def setMotorTaget(_motor: MotorController = None, angle = "", speed:int = MAX_SPEED, acceleration:int = MAX_ACCELERATION):
@@ -129,14 +121,18 @@ def setMotorTaget(_motor: MotorController = None, angle = "", speed:int = MAX_SP
     print("Motor", _motor.name, "Angle: ", angleToMicrostep(angle), "Speed: ", speed, "Velocity: ", acceleration)
 
 #Get Max Speed PP/s to make overall roattion time
-def setTargetRotation(rollAngle:float = 0, tiltAngle:float = 0, speed:int = 100, velocity:int = 50):
-    
+def setTargetRotation( _rollMotor: MotorController, _tiltMotor: MotorController, rollAngle:float = 0, tiltAngle:float = 0, speed:int = 100, velocity:int = 50):
     #in here need current angle to compare against target angle
+    currentTiltPos = _tiltMotor.motor.get_position()
+    currentRollPos = _rollMotor.motor.get_position()
+
     _rollAngle = rollAngle
     _tiltAngle = tiltAngle
+
     _tiltAngle += _rollAngle    #roll is Master, and locked on axis
-    _rollSpeed = speed
+
     _tiltSpeed = speed
+    _rollSpeed = speed
     _rollVelocity = velocity
     _tiltVelocity = velocity
     mult = 1
@@ -151,17 +147,14 @@ def setTargetRotation(rollAngle:float = 0, tiltAngle:float = 0, speed:int = 100,
         _rollVelocity = velocity * mult
     
     
-    setMotorTaget(tilt, int(_tiltAngle), _tiltSpeed, _tiltVelocity)
-    setMotorTaget(roll, int(_rollAngle), _rollSpeed, _rollVelocity)
+    setMotorTaget(_tiltMotor, int(_tiltAngle), _tiltSpeed, _tiltVelocity)
+    setMotorTaget(_rollMotor, int(_rollAngle), _rollSpeed, _rollVelocity)
 
     atPosition = False
-    currentTiltPos = tilt.motor.get_position()
-    currentRollPos = roll.motor.get_position()
 
     while(atPosition == False):
-
         print("tilt: ", tilt.motor.get_position(), "roll", roll.motor.get_position())
-        if((tilt.motor.get_position() == angleToMicrostep(_tiltAngle)) and (roll.motor.get_position() == angleToMicrostep(_rollAngle))):
+        if((_tiltMotor.motor.get_position() == angleToMicrostep(_tiltAngle)) and (_rollMotor.motor.get_position() == angleToMicrostep(_rollAngle))):
             atPosition = True
         pass
 
@@ -219,12 +212,21 @@ def fixTiltRockPan(speed: int = MAX_SPEED, positionRockTo: int = 0, positionRock
             # break
 
 
+
+
+tilt = MotorController(comport="COM3")
+roll = MotorController(comport="COM4")
+#Roll Motor Is Master Axes
+#Tilt Angle = Roll + Tilt Angle
+tilt.name = "tilt"
+roll.name = "roll"
+
 zeroPositionReference()
 tiltAngle = 0
 while(True):
     tiltAngle = rand.randrange(-45, 45, 1)
     rollAngle = rand.randrange(-45, 45, 1)
-    setTargetRotation(tiltAngle, rollAngle, 200, 50)
+    setTargetRotation(tilt, roll, tiltAngle, rollAngle, 200, 50)
 
 
 # setupRoutine()
