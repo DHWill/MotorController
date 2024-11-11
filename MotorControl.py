@@ -6,6 +6,14 @@ import time
 import random as rand
 import math
 
+STEP_ANGLE = 1.8
+U_STEP = 256
+FULL_STEP = (360. / STEP_ANGLE) * U_STEP
+
+
+MAX_SPEED = 200
+MAX_ACCELERATION = 50
+
 def get_usb_com_ports_with_serial_numbers():
     ports = serial.tools.list_ports.comports()
     usb_ports_with_serial = []
@@ -24,29 +32,7 @@ def get_usb_com_ports_with_serial_numbers():
 
     return usb_ports_with_serial
 
-print(get_usb_com_ports_with_serial_numbers())
 
-#SAP 171, 0, 0 // smartEnergy current up step
-#SAP 181, 0, 14 // stop-on-stall velocity
-#SAP 170, 0, 0 // smartEnergy hysteresis
-#SAP 6, 0, 200 // Maximum current
-#SAP 168, 0, 0 // smartEnergy current minimum (SEIMIN)
-#SAP 182, 0, 0 // smartEnergy threshold speed
-#SAP 173, 0, 1 // stallGuard2 filter enable
-#SAP 172, 0, 0 // smartEnergy hysteresis start
-#SAP 174, 0, 16 // stallGuard2 threshold
-#SAP 7, 0, 16 // Standby current
-#SAP 169, 0, 0 // smartEnergy current down step
-#SAP 183, 0, 0 // smartEnergy slow run current
-#SAP 7, 0, 127    //set Standby current
-
-STEP_ANGLE = 1.8
-U_STEP = 256
-FULL_STEP = (360. / STEP_ANGLE) * U_STEP
-
-
-MAX_SPEED = 200
-MAX_ACCELERATION = 10
 
 def angleToMicrostep(angle):
     ret = FULL_STEP/360.
@@ -115,10 +101,41 @@ class MotorController():
     def freeMotor(self):
         self.motor.set_axis_parameter(parameter=7, value=0) #standby current
         self.motor.stop()
+    
+    def getMotorID(self):
+        return self.motor.get_global_parameter(bank=0, addr=0, parameter=66)
+
+
+#Roll = Serial Adress 0
+#Tilt = Serial Adress 1
+
+comportList = get_usb_com_ports_with_serial_numbers()
+tilt = None
+roll = None
+for comport, serial_number in comportList:
+    motor = None
+    try:
+        motor = MotorController(comport)
+        motorID = motor.getMotorID()
+
+        if(motorID == 0):
+            motor.name = "roll"
+            roll = motor
+        elif(motorID == 1):
+            motor.name = "tilt"
+            tilt = motor
+    except:
+        print("No Motor detected on:", comport)
+
+if((tilt == None) or (roll == None)):
+    print("No Motors detected, exiting...")
+    quit()
+
 
 
 def setMotorTaget(_motor: MotorController = None, angle = "", speed:int = MAX_SPEED, acceleration:int = MAX_ACCELERATION):
     _motor.motor.set_axis_parameter(parameter=4, value=speed)
+
     _motor.motor.set_axis_parameter(parameter=5, value=acceleration)
     _motor.motor.move_to(angleToMicrostep(angle))
     print("Motor", _motor.name, "MicroStep: ", angleToMicrostep(angle), "Angle: ", angle, "Speed: ", speed, "Velocity: ", acceleration)
@@ -188,62 +205,37 @@ def zeroPositionReference():
     roll.motor.set_position_reference(axis=0, pos=0)
     tilt.motor.set_position_reference(axis=0, pos=0)
 
-def goToZero( _rollMotor: MotorController):
-    roll.motor.move_to(0)
-    tilt.motor.move_to(0)
-    while((roll.motor.get_position() != int(0) or tilt.motor.get_position() != int(0))):
-        print("zeroing motors", tilt.motor.get_position(), roll.motor.get_position())
-        time.sleep(0.005)
-    return True
-
-def fixTiltRockPan(speed: int = MAX_SPEED, positionRockTo: int = 0, positionRockBack: int = 0):
-    tilt.lockMotor()
-    
-    spaceFromEdge = U_STEP * 20
-    positionRockTo = pan.fullRotation - spaceFromEdge
-    positionRockBack = spaceFromEdge
-    pan.motor.set_axis_parameter(parameter=4, value=speed)
-    
-    pan.motor.move_to(positionRockTo)
-    while(pan.motor.get_position() != positionRockTo):
-        print("forth", pan.motor.get_position())
-        time.sleep(0.005)
-        # if(pan.motor.get_current_speed() < speed - 50):
-            # break
-    pan.motor.stop()
-    time.sleep(0.05)
-    pan.motor.move_to(positionRockBack)
-    while(pan.motor.get_position() != positionRockBack):
-        print("Back", pan.motor.get_position())
-        time.sleep(0.005)
-        # if(pan.motor.get_current_speed() < speed - 50):
-            # break
-
-
-
-
-tilt = MotorController(comport="COM4")
-tilt.name = "tilt"
-roll = MotorController(comport="COM3")
-roll.name = "roll"
+#Roll Motor Is Master Axes
+#Tilt Angle = Roll + Tilt Angle
 
 setupRoutine(roll, tilt)
 roll.motor.setup_limit_switches(axis=0, left_enable=False, right_enable=False)
 tilt.motor.setup_limit_switches(axis=0, left_enable=False, right_enable=False)
-#Roll Motor Is Master Axes
-#Tilt Angle = Roll + Tilt Angle
+
+
+#Limit to +/- 45Deg
+tiltCentreAngle = tilt.fullRotationAngle / 2.
+
+#Centre Point 
+setTargetRotationAngle(roll, tilt, rollAngle=roll.fullRotationAngle/2, tiltAngle=tiltCentreAngle, speed=200, velocity=50)
+
 while(True):
 
-    
-    setTargetRotationAngle(roll, tilt, rollAngle=roll.fullRotationAngle, tiltAngle=tilt.fullRotationAngle, speed=200, velocity=50)
+    print("------------------------------------------------")
     print("Look Bottom Right")
-    setTargetRotationAngle(roll, tilt, rollAngle=roll.fullRotationAngle/4, tiltAngle=tilt.fullRotationAngle/2, speed=200, velocity=50)
-    print("Look Centre")
-    setTargetRotationAngle(roll, tilt, rollAngle=roll.fullRotationAngle/2, tiltAngle=tilt.fullRotationAngle, speed=200, velocity=50)
-    print("Look Bottom Left")
-    setTargetRotationAngle(roll, tilt, rollAngle=0, tiltAngle=tilt.fullRotationAngle, speed=200, velocity=50)
+    setTargetRotationAngle(roll, tilt, rollAngle=roll.fullRotationAngle, tiltAngle=tiltCentreAngle-45, speed=200, velocity=20)
+    print("------------------------------------------------")
     print("Look Top Left")
-    setTargetRotationAngle(roll, tilt, rollAngle=roll.fullRotationAngle/2, tiltAngle=0, speed=200, velocity=50)
+    setTargetRotationAngle(roll, tilt, rollAngle=0, tiltAngle=tiltCentreAngle+45, speed=200, velocity=20)
+    print("------------------------------------------------")
+    print("Look Centre")
+    setTargetRotationAngle(roll, tilt, rollAngle=roll.fullRotationAngle/2, tiltAngle=tiltCentreAngle, speed=200, velocity=20)
+    print("------------------------------------------------")
+    print("Look Bottom Left")
+    setTargetRotationAngle(roll, tilt, rollAngle=roll.fullRotationAngle, tiltAngle=tiltCentreAngle+45, speed=200, velocity=20)
+    print("------------------------------------------------")
+    print("Look Top Left")
+    setTargetRotationAngle(roll, tilt, rollAngle=0, tiltAngle=tiltCentreAngle-45, speed=200, velocity=20)
     # setTargetRotation(tilt, roll, tiltAngle=_tiltAngle, rollAngle=_rollAngle, speed=200, velocity=50)
 
     
