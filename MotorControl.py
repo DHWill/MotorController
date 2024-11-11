@@ -234,8 +234,16 @@ tilt.motor.setup_limit_switches(axis=0, left_enable=False, right_enable=False)
 #Tilt Angle = Roll + Tilt Angle
 while(True):
 
-    setTargetRotationAngle(roll, tilt, 0.1, 0.1, 200, 50)
+    
     setTargetRotationAngle(roll, tilt, rollAngle=roll.fullRotationAngle, tiltAngle=tilt.fullRotationAngle, speed=200, velocity=50)
+    print("Look Bottom Right")
+    setTargetRotationAngle(roll, tilt, rollAngle=roll.fullRotationAngle/4, tiltAngle=tilt.fullRotationAngle/2, speed=200, velocity=50)
+    print("Look Centre")
+    setTargetRotationAngle(roll, tilt, rollAngle=roll.fullRotationAngle/2, tiltAngle=tilt.fullRotationAngle, speed=200, velocity=50)
+    print("Look Bottom Left")
+    setTargetRotationAngle(roll, tilt, rollAngle=0, tiltAngle=tilt.fullRotationAngle, speed=200, velocity=50)
+    print("Look Top Left")
+    setTargetRotationAngle(roll, tilt, rollAngle=roll.fullRotationAngle/2, tiltAngle=0, speed=200, velocity=50)
     # setTargetRotation(tilt, roll, tiltAngle=_tiltAngle, rollAngle=_rollAngle, speed=200, velocity=50)
 
     
