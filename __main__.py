@@ -37,7 +37,7 @@ def get_paired_motors() -> list[ControllerArm]:
     
     return motor_set
 
-# self, rollAngle:float = 0, tiltAngle:float = 0, speed:int = 100, velocity:int = 50
+# rollAngle:float = 0, tiltAngle:float = 0, speed:int = 100, velocity:int = 50
 rotationSequences = [
     (90, -45, 200, 20 ),
     (-85, 45, 200, 20 ),
