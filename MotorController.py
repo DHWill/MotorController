@@ -81,8 +81,8 @@ class MotorController():
     def getPositionSteps(self) -> int:
         return self.motor.get_position()
     
-    def set_limit_switches(self):
-        self.motor.setup_limit_switches(axis=0, left_enable=True, right_enable=True)
+    def set_limit_switches(self, isLimiting:bool = True):
+        self.motor.setup_limit_switches(axis=0, left_enable=isLimiting, right_enable=isLimiting)
     
     def setMotorTaget(self, angle = 0, speed:int = MAX_SPEED, acceleration:int = MAX_ACCELERATION):
         self.targetAngle = angle

@@ -55,9 +55,9 @@ class ControllerArm():
         # while((self.rollMotor.getIsPositionReached() == False) or (self.tiltMotor.getIsPositionReached() == False)):
         #     pass
     
-    def removeLimitSwitches(self):
-        self.rollMotor.set_limit_switches(False)
-        self.tiltMotor.set_limit_switches(False)
+    def setArmLimitSwitches(self, _isLimiting:bool = False):
+        self.rollMotor.set_limit_switches(_isLimiting)
+        self.tiltMotor.set_limit_switches(_isLimiting)
 
     def setupRoutine(self):
         self.rollMotor.setupDefaults()

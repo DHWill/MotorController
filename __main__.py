@@ -39,12 +39,10 @@ def get_paired_motors() -> list[ControllerArm]:
 
 # self, rollAngle:float = 0, tiltAngle:float = 0, speed:int = 100, velocity:int = 50
 rotationSequences = [
-    (85, 0, 200, 20 ),
+    (90, -45, 200, 20 ),
     (-85, 45, 200, 20 ),
-    (0, -45, 200, 20 ),
-    (85, 0, 200, 20 ),
-    (85, 45, 200, 20 ),
     (0, 0, 200, 20 ),
+    (85, 45, 200, 20 ),
     (-85, -45, 200, 20 ),
 ]
 
@@ -70,7 +68,7 @@ if(__name__ == "__main__"):
         t.join()
     
     for arm in connected_arms:
-        arm.removeLimitSwitches()
+        arm.setArmLimitSwitches(False)
         
 
 
