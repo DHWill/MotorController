@@ -41,15 +41,15 @@ class ControllerArm():
         if(rollDistance > tiltDistance):
             mult = (tiltDistance / rollDistance)
             _tiltSpeed = speed * mult
-            # _tiltVelocity = velocity * mult
+            _tiltVelocity = velocity * mult
         elif(rollDistance < tiltDistance):
             mult = (rollDistance / tiltDistance)
             _rollSpeed = speed * mult
-            # _rollVelocity = velocity * mult
+            _rollVelocity = velocity * mult
 
 
-        self.rollMotor.setMotorTaget(int(_rollAngle), _rollSpeed, _rollVelocity)
-        self.tiltMotor.setMotorTaget(int(_tiltAngle), _tiltSpeed, _tiltVelocity)
+        self.rollMotor.setMotorTaget(int(_rollAngle), _rollSpeed, int(_rollVelocity +1))
+        self.tiltMotor.setMotorTaget(int(_tiltAngle), _tiltSpeed, int(_tiltVelocity +1))
 
         #Remove This to be NON-blocking for multi arm programming
         # while((self.rollMotor.getIsPositionReached() == False) or (self.tiltMotor.getIsPositionReached() == False)):

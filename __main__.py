@@ -1,6 +1,7 @@
 from globals import *
 from ControllerArm import ControllerArm, MotorController
 import threading
+import time
 
 
 #Roll = Serial Adress 0
@@ -69,20 +70,26 @@ if(__name__ == "__main__"):
     
     for arm in connected_arms:
         arm.setArmLimitSwitches(False)
-        
-
-
+        arm.setTargetRotationAngle(rollAngle=0, tiltAngle=0,speed=200,velocity=50)
     
-
+    time.sleep(5)
     
     while True:
+        allInPosition = False
         for arm in connected_arms:
-            if(arm.getPositionReached()):
-                _rollAngle, _tiltAngle, _speed, _velocity = rotationSequences[arm.sequencePosition]
-                print("_rollAngle: ", _rollAngle, "_tiltAngle: ", _tiltAngle, " _speed: ", _speed, "_velocity: ", _velocity)
-                arm.setTargetRotationAngle(rollAngle=_rollAngle, tiltAngle=_tiltAngle,speed=_speed,velocity=_velocity)
-                arm.sequencePosition += 1 
-                arm.sequencePosition %= len(rotationSequences)
+            if(arm.getPositionReached() == True):
+                allInPosition = True
+            else:
+                break
+        
+        if(allInPosition):
+            for arm in connected_arms:
+                if(arm.getPositionReached()):
+                    _rollAngle, _tiltAngle, _speed, _velocity = rotationSequences[arm.sequencePosition]
+                    print("_rollAngle: ", _rollAngle, "_tiltAngle: ", _tiltAngle, " _speed: ", _speed, "_velocity: ", _velocity)
+                    arm.setTargetRotationAngle(rollAngle=_rollAngle, tiltAngle=_tiltAngle,speed=_speed,velocity=_velocity)
+                    arm.sequencePosition += 1 
+                    arm.sequencePosition %= len(rotationSequences)
     
 
 

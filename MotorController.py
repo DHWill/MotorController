@@ -18,7 +18,7 @@ class MotorController():
         self.motor.set_microstep_resolution(U_STEP)
         self.motor.set_axis_parameter(parameter=4, value=MAX_SPEED)
         self.motor.set_axis_parameter(parameter=5, value=MAX_ACCELERATION)
-        self.motor.set_axis_parameter(parameter=6, value=255) #max current
+        self.motor.set_axis_parameter(parameter=6, value=200) #max current
         self.motor.set_axis_parameter(parameter=7, value=8) #standby current
         self.motor.set_axis_parameter(axis=0, parameter=173, value=1)   #stallGuard Filter
         self.motor.set_axis_parameter(axis=0, parameter=174, value=self.stallguardThreshold)   #stallGuard threshold
