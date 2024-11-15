@@ -81,3 +81,8 @@ class ControllerArm():
             print("Not Moving")
             _ret = True
         return _ret
+
+    def waitPositionReached(self):
+        while(self.getPositionReached() == False):
+            pass
+        
