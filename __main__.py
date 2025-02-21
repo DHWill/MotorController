@@ -39,21 +39,27 @@ def get_paired_motors() -> list[ControllerArm]:
     return motor_set
 
 # rollAngle:float = 0, tiltAngle:float = 0, speed:int = 100, velocity:int = 50
-rotationSequences = [
-    (90, -45, 200, 20 ),
-    (-85, 45, 200, 20 ),
-    (0, 0, 200, 20 ),
-    (85, 45, 200, 20 ),
-    (-85, -45, 200, 20 ),
-]
+_spee = 70  #HERE
+_accel = 10 #HERE
 
-# rotationSequences1 = [
-#     (-85, -45, 200, 20 ),
-#     (90, 45, 200, 20 ),
-#     (0, 0, 200, 20 ),
-#     (-85, 45, 200, 20 ),
-#     (85, -45, 200, 20 ),
+# rotationSequences = [
+#     (-90, -55, _spee, _accel),
+#     (-90, 0, _spee, _accel),
+#     (-90, 55, _spee, _accel),
+#     (-90, 0, _spee, _accel),
+#     (-90, -55, _spee, _accel),
+#     (-90, 0, _spee, _accel),
+#     (-90, 55, _spee, _accel),
+#     (-90, 0, _spee, _accel),
 # ]
+
+rotationSequences1 = [
+    (-85, -45, 200, 20 ),
+    (90, 45, 200, 20 ),
+    (0, 0, 200, 20 ),
+    (-85, 45, 200, 20 ),
+    (85, -45, 200, 20 ),
+]
 
 
 
@@ -84,30 +90,38 @@ if(__name__ == "__main__"):
     
     for arm in connected_arms:
         arm.setArmLimitSwitches(False)
-        arm.setTargetRotationAngle(rollAngle=0, tiltAngle=0,speed=200,velocity=50)
+        arm.setTargetRotationAngle(rollAngle=-90, tiltAngle=0,speed=200,acceleration=50)
     
     
+    
+    
+    wait_all_inposition(connected_arms)
+    time.sleep(2)
     while True:
-        wait_all_inposition(connected_arms)    
-        for arm in connected_arms:
-            if(arm.getPositionReached()):
-                _rollAngle, _tiltAngle, _speed, _velocity = rotationSequences[arm.sequencePosition]
-                print("_rollAngle: ", _rollAngle, "_tiltAngle: ", _tiltAngle, " _speed: ", _speed, "_velocity: ", _velocity)
-                arm.setTargetRotationAngle(rollAngle=_rollAngle, tiltAngle=_tiltAngle,speed=_speed,velocity=_velocity)
-                arm.sequencePosition += 1 
-                arm.sequencePosition %= len(rotationSequences)
+        for sequence in range(len(rotationSequences1)):
+            wait_all_inposition(connected_arms)
+            time.sleep(1)
+            for arm in connected_arms:
+                if(arm.getPositionReached()):
+                    _rollAngle, _tiltAngle, _speed, _acceleration = rotationSequences1[arm.sequencePosition]
+                    print("_rollAngle: ", _rollAngle, "_tiltAngle: ", _tiltAngle, " _speed: ", _speed, "_acceleration: ", _acceleration)
+                    arm.setTargetRotationAngle(rollAngle=_rollAngle, tiltAngle=_tiltAngle,speed=_speed,acceleration=_acceleration)
+                    arm.sequencePosition += 1 
+                    arm.sequencePosition %= len(rotationSequences1)
+
+        
 
 
     # while True:
     #     wait_all_inposition(connected_arms)    
-    #     _rollAngle, _tiltAngle, _speed, _velocity = rotationSequences[arm.sequencePosition]
-    #     print("_rollAngle: ", _rollAngle, "_tiltAngle: ", _tiltAngle, " _speed: ", _speed, "_velocity: ", _velocity)
-    #     connected_arms[0].setTargetRotationAngle(rollAngle=_rollAngle, tiltAngle=_tiltAngle,speed=_speed,velocity=_velocity)
     #     _rollAngle, _tiltAngle, _speed, _velocity = rotationSequences1[arm.sequencePosition]
-    #     connected_arms[1].setTargetRotationAngle(rollAngle=_rollAngle, tiltAngle=_tiltAngle,speed=_speed,velocity=_velocity)
     #     print("_rollAngle: ", _rollAngle, "_tiltAngle: ", _tiltAngle, " _speed: ", _speed, "_velocity: ", _velocity)
+    #     connected_arms[0].setTargetRotationAngle(rollAngle=_rollAngle, tiltAngle=_tiltAngle,speed=_speed,acceleration=_velocity)
+    #     # _rollAngle, _tiltAngle, _speed, _velocity = rotationSequences1[arm.sequencePosition]
+    #     # connected_arms[1].setTargetRotationAngle(rollAngle=_rollAngle, tiltAngle=_tiltAngle,speed=_speed,acceleration=_velocity)
+    #     # print("_rollAngle: ", _rollAngle, "_tiltAngle: ", _tiltAngle, " _speed: ", _speed, "_velocity: ", _velocity)
     #     arm.sequencePosition += 1 
-    #     arm.sequencePosition %= len(rotationSequences)
+    #     arm.sequencePosition %= len(rotationSequences1)
     
     
 

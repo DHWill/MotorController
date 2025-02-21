@@ -11,14 +11,16 @@ class ControllerArm():
         self.sequencePosition = 0
         self.isSetup = False
 
-    #Get Max Speed PP/s to make overall roattion time
-    def setTargetRotationAngle(self, rollAngle:float = 0, tiltAngle:float = 0, speed:int = 100, velocity:int = 50):
-        #in here need current angle to compare against target angle
+    #This Takes ANGLE in Degrees relative to centre reference (0, 0) 
+    # eg. extreme rotate left and back would be: 
+    # -90, -90, speed, acceleration
+
+    def setTargetRotationAngle(self, rollAngle:float = 0, tiltAngle:float = 0, speed:int = 100, acceleration:int = 50):
         tiltCentreAngle = self.tiltMotor.fullRotationAngle / 2.
         rollCentreAngle = self.rollMotor.fullRotationAngle / 2.
         
-        rollAngle = max(min(rollAngle, rollCentreAngle), rollCentreAngle * -1)
-        tiltAngle = max(min(tiltAngle, tiltCentreAngle), tiltCentreAngle * -1)
+        rollAngle = max(min(rollAngle, rollCentreAngle), rollCentreAngle * -1)  # Clipping to 'fullRotationAngle' (distance between limit switch left/right)
+        tiltAngle = max(min(tiltAngle, tiltCentreAngle), tiltCentreAngle * -1)  
 
         _rollAngle = rollCentreAngle + rollAngle 
         _tiltAngle = tiltCentreAngle + tiltAngle
@@ -27,8 +29,8 @@ class ControllerArm():
 
         _tiltSpeed = speed
         _rollSpeed = speed
-        _rollVelocity = velocity
-        _tiltVelocity = velocity
+        _rollAcceleration = acceleration
+        _tiltAcceleration = acceleration
         mult = 1
 
         currentTiltStep = self.tiltMotor.getPositionSteps()
@@ -41,15 +43,15 @@ class ControllerArm():
         if(rollDistance > tiltDistance):
             mult = (tiltDistance / rollDistance)
             _tiltSpeed = speed * mult
-            _tiltVelocity = velocity * mult
+            _tiltAcceleration = acceleration * mult
         elif(rollDistance < tiltDistance):
             mult = (rollDistance / tiltDistance)
             _rollSpeed = speed * mult
-            _rollVelocity = velocity * mult
+            _rollAcceleration = acceleration * mult
 
 
-        self.rollMotor.setMotorTaget(int(_rollAngle), _rollSpeed, int(_rollVelocity +1))
-        self.tiltMotor.setMotorTaget(int(_tiltAngle), _tiltSpeed, int(_tiltVelocity +1))
+        self.rollMotor.setMotorTaget(int(_rollAngle), _rollSpeed, int(_rollAcceleration))
+        self.tiltMotor.setMotorTaget(int(_tiltAngle), _tiltSpeed, int(_tiltAcceleration))
 
         #Remove This to be NON-blocking for multi arm programming
         # while((self.rollMotor.getIsPositionReached() == False) or (self.tiltMotor.getIsPositionReached() == False)):
