@@ -96,6 +96,7 @@ if(__name__ == "__main__"):
     
     
     wait_all_inposition(connected_arms)
+    print("setup")
     time.sleep(2)
     while True:
         for sequence in range(len(rotationSequences1)):
@@ -108,6 +109,7 @@ if(__name__ == "__main__"):
                     arm.setTargetRotationAngle(rollAngle=_rollAngle, tiltAngle=_tiltAngle,speed=_speed,acceleration=_acceleration)
                     arm.sequencePosition += 1 
                     arm.sequencePosition %= len(rotationSequences1)
+
 
         
 
