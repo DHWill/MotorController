@@ -1,6 +1,10 @@
 from globals import *
 from MotorController import MotorController
 
+ROLL_HOME_GPI = 1
+TILT_HOME_GPI = 1
+TILT_LIMIT_GPI = 2
+
 class ControllerArm():
     def __init__(self, _rollMotor: MotorController, _tiltMotor: MotorController, _armID:int = 0):
         self.rollMotor = _rollMotor
@@ -10,11 +14,12 @@ class ControllerArm():
         self.rollTargetTargetAngle = 0
         self.sequencePosition = 0
         self.isSetup = False
+        self.isHoming = False
 
     #This Takes ANGLE in Degrees relative to centre reference (0, 0) 
     # eg. extreme rotate left and back would be: 
     # -90, -90, speed, acceleration
-
+    # ONLY USED ONCE HOMED
     def setTargetRotationAngle(self, rollAngle:float = 0, tiltAngle:float = 0, speed:int = 100, acceleration:int = 50):
         tiltCentreAngle = self.tiltMotor.fullRotationAngle / 2.
         rollCentreAngle = self.rollMotor.fullRotationAngle / 2.
@@ -73,6 +78,53 @@ class ControllerArm():
         self.tiltMotor.setupDefaults()
         print("tilt: ", self.tiltMotor.motor.get_position(), "roll: ", self.rollMotor.motor.get_position())
         self.isSetup = True
+    
+    def hasHitLimits(self):
+        return self.tiltMotor.getGPI(port=TILT_LIMIT_GPI)
+    
+    def homeMotors(self):
+        self.isHoming = True
+        self.rollMotor.stop()
+        self.tiltMotor.stop()
+
+        self.rollMotor.setupDefaults()
+        self.tiltMotor.setupDefaults()
+
+        self.rollMotor.setMotorTaget(angle=-360, speed=150, acceleration=50)
+        self.tiltMotor.setMotorTaget(angle=-360, speed=150, acceleration=50)
+        while(self.rollMotor.getIsMoving() and self.rollMotor.getIsMoving()):
+            if(self.rollMotor.getGPI(ROLL_HOME_GPI) == 1):
+                self.rollMotor.stop()
+                self.tiltMotor.stop()
+                self.rollMotor.motor.set_position_reference(axis=0, pos=0)
+                print("Found Roll Home, set as Zero")
+        
+        
+        
+        hasFoundHome = False
+        pathToFindHome = 360
+        findHomeTimout = 0
+        while(hasFoundHome == False):
+            self.tiltMotor.setMotorTaget(pathToFindHome)
+            while(self.tiltMotor.getIsMoving()):
+                if(self.tiltMotor.getGPI(TILT_HOME_GPI) == 1):
+                    self.tiltMotor.stop()
+                    self.tiltMotor.motor.set_position_reference(axis=0, pos=0)
+                    hasFoundHome = True
+                    print("Found Home..: ")
+                elif(self.tiltMotor.getGPI(TILT_LIMIT_GPI) == 0):
+                    self.tiltMotor.stop()
+                    #Pause here for 5 degrees
+                    pathToFindHome *= -1    #Youve Hit Limit Go Backwards
+                    print("Tilt Hit Limit, New Path: ", pathToFindHome)
+            
+            if(findHomeTimout > 2):
+                continue
+            
+            findHomeTimout += 1
+        print("Found Roll Home, set as Zero")
+        self.isHoming = False
+
     
     def getPositionReached(self) -> bool:
         _ret = False
