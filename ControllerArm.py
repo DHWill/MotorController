@@ -98,30 +98,34 @@ class ControllerArm():
                 self.tiltMotor.stop()
                 self.rollMotor.motor.set_position_reference(axis=0, pos=0)
                 print("Found Roll Home, set as Zero")
+                break
         
         
         
         hasFoundHome = False
-        pathToFindHome = 360
-        findHomeTimout = 0
+        homingDirection = 1
+        retroReflectiveTimout = 0
+        nudgeAngle = 0
+        self.tiltMotor.motor.set_position_reference(pos=0, axis=0)
         while(hasFoundHome == False):
-            self.tiltMotor.setMotorTaget(pathToFindHome)
+            self.tiltMotor.setMotorTaget(360 * homingDirection)
+            start_position = self.tiltMotor.getPositionAngle()
             while(self.tiltMotor.getIsMoving()):
                 if(self.tiltMotor.getGPI(TILT_HOME_GPI) == 1):
                     self.tiltMotor.stop()
                     self.tiltMotor.motor.set_position_reference(axis=0, pos=0)
                     hasFoundHome = True
                     print("Found Home..: ")
-                elif(self.tiltMotor.getGPI(TILT_LIMIT_GPI) == 0):
+                    break
+                
+                elif((self.tiltMotor.getGPI(TILT_LIMIT_GPI) == 0) and (abs(start_position - self.tiltMotor.getPositionAngle()) > nudgeAngle)):
                     self.tiltMotor.stop()
-                    #Pause here for 5 degrees
-                    pathToFindHome *= -1    #Youve Hit Limit Go Backwards
-                    print("Tilt Hit Limit, New Path: ", pathToFindHome)
-            
-            if(findHomeTimout > 2):
-                continue
-            
-            findHomeTimout += 1
+                    homingDirection *= -1    #Youve Hit Limit Go Backwards
+                    nudgeAngle = 10
+                    print("Tilt Hit Limit, New Path: ", homingDirection)
+                    break
+                    
+        
         print("Found Roll Home, set as Zero")
         self.isHoming = False
 

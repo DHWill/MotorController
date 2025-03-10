@@ -26,13 +26,13 @@ def get_usb_com_ports_with_serial_numbers():
     return usb_ports_with_serial
     
 
-def angleToMicrostep(angle):
+def angleToMicrostep(angle) -> int:
     ret = FULL_STEP/360.
     ret *= angle
     ret = int(ret)
     return ret
 
-def microstepToAngle(microstep):
+def microstepToAngle(microstep) -> float:
     ret = 360./FULL_STEP
     ret *= microstep
     return ret
