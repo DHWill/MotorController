@@ -125,9 +125,6 @@ class ControllerArm():
                     homingAttempts += 1
                     break
 
-                
-            
-
         print("Found Roll Home, set as Zero")
         self.isHoming = False
 

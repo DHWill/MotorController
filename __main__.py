@@ -109,6 +109,7 @@ if(__name__ == "__main__"):
                     arm.setTargetRotationAngle(rollAngle=_rollAngle, tiltAngle=_tiltAngle,speed=_speed,acceleration=_acceleration)
                     arm.sequencePosition += 1 
                     arm.sequencePosition %= len(rotationSequences1)
+                    
 
 
         
