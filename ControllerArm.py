@@ -15,6 +15,8 @@ class ControllerArm():
         self.sequencePosition = 0
         self.isSetup = False
         self.isHoming = False
+        self.tiltMotor.fullRotationAngle = 80
+
 
     #This Takes ANGLE in Degrees relative to centre reference (0, 0) 
     # eg. extreme rotate left and back would be: 
@@ -22,13 +24,15 @@ class ControllerArm():
     # ONLY USED ONCE HOMED
     def setTargetRotationAngle(self, rollAngle:float = 0, tiltAngle:float = 0, speed:int = 100, acceleration:int = 50):
         tiltCentreAngle = self.tiltMotor.fullRotationAngle / 2.
-        rollCentreAngle = self.rollMotor.fullRotationAngle / 2.
+        # rollCentreAngle = self.rollMotor.fullRotationAngle / 2.
         
-        rollAngle = max(min(rollAngle, rollCentreAngle), rollCentreAngle * -1)  # Clipping to 'fullRotationAngle' (distance between limit switch left/right)
-        tiltAngle = max(min(tiltAngle, tiltCentreAngle), tiltCentreAngle * -1)  
+        # rollAngle = max(min(rollAngle, rollCentreAngle), rollCentreAngle * -1)  # Clipping to 'fullRotationAngle' (distance between limit switch left/right)
+        tiltAngle = max(min(tiltAngle, tiltCentreAngle), tiltCentreAngle * -1)
 
-        _rollAngle = rollCentreAngle + rollAngle 
-        _tiltAngle = tiltCentreAngle + tiltAngle
+        # _rollAngle = rollCentreAngle + rollAngle 
+        # _tiltAngle = tiltCentreAngle + tiltAngle
+        _tiltAngle = tiltAngle
+        _rollAngle = rollAngle
 
         _tiltAngle += _rollAngle     #roll is Master, and locked on axis
 
@@ -65,6 +69,14 @@ class ControllerArm():
     def setArmLimitSwitches(self, _isLimiting:bool = False):
         self.rollMotor.set_limit_switches(_isLimiting)
         self.tiltMotor.set_limit_switches(_isLimiting)
+    
+    def stopMotors(self):
+        self.rollMotor.stop()
+        self.tiltMotor.stop()
+    
+    def zeroMotors(self):
+        self.rollMotor.motor.set_actual_position(position=0)
+        self.tiltMotor.motor.set_actual_position(position=0)
 
     def setupRoutine(self):
         self.rollMotor.setupDefaults()
@@ -131,10 +143,10 @@ class ControllerArm():
     
     def getPositionReached(self) -> bool:
         _ret = False
-        if ((self.tiltMotor.getPositionSteps() == angleToMicrostep(self.tiltTargetTargetAngle)) and (self.rollMotor.getPositionSteps() == angleToMicrostep(self.rollTargetTargetAngle))):
+        if((self.tiltMotor.getIsPositionReached()) and (self.rollMotor.getIsPositionReached())):
             print("Position Reached")
             _ret = True
-        if((self.tiltMotor.motor.get_current_speed() == 0) and (self.rollMotor.motor.get_current_speed() == 0)):
+        elif((self.tiltMotor.getIsMoving() == False) and (self.rollMotor.getIsMoving() == False)):
             print("Not Moving")
             _ret = True
         return _ret

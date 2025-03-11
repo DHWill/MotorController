@@ -23,7 +23,7 @@ class MotorController():
         self.motor.drive_settings.set_standby_current(70)
         self.motor.drive_settings.set_boost_current(30)     #Check this 
         self.motor.drive_settings.set_microstep_resolution(self.motor.ENUM.MicrostepResolution256Microsteps)
-        
+
         self.motor.linear_ramp.set_max_acceleration(MAX_ACCELERATION)
         self.motor.linear_ramp.set_max_velocity(MAX_VELOCITY)
 
@@ -57,6 +57,7 @@ class MotorController():
         print("Motor: ", self.name, "Position: ", self.motor.get_actual_position(), "Angle: ", microstepToAngle(self.motor.get_actual_position()))
         print("Motor: ", self.name, "FullRotationAngle: ", self.fullRotationAngle, "FullRotationSteps: ", self.fullRotationSteps)
     
+
     def findHome(self, gpi_pin:int=0):
         self.motor.stop()
         self.motor.move_to(-FULL_STEP, axis=0)
@@ -112,7 +113,7 @@ class MotorController():
         self.targetAngle = angle
         # self.motor.set_axis_parameter(parameter=4, value=speed)
         # self.motor.set_axis_parameter(parameter=5, value=acceleration)
-        self.motor.move_to(position=angleToMicrostep(self.targetAngle), velocity=_velocity)
+        self.motor.move_to(position=int(angleToMicrostep(self.targetAngle)), velocity=int(_velocity))
         print("ArmNumber", self.armID, "Motor", self.name, "MicroStep: ", angleToMicrostep(self.targetAngle), "Angle: ", angle, "Veloctiy: ", _velocity, "Acelleration: ", _acceleration)
 
     def getGPI(self, port) -> int:
