@@ -90,13 +90,13 @@ class ControllerArm():
         self.rollMotor.setupDefaults()
         self.tiltMotor.setupDefaults()
 
-        self.rollMotor.setMotorTaget(angle=-360, speed=150, acceleration=50)
-        self.tiltMotor.setMotorTaget(angle=-360, speed=150, acceleration=50)
+        self.rollMotor.setMotorTaget(angle=-360, _velocity=150, _acceleration=50)
+        self.tiltMotor.setMotorTaget(angle=-360, _velocity=150, _acceleration=50)
         while(self.rollMotor.getIsMoving() and self.rollMotor.getIsMoving()):
             if(self.rollMotor.getGPI(ROLL_HOME_GPI) == 1):
                 self.rollMotor.stop()
                 self.tiltMotor.stop()
-                self.rollMotor.motor.set_position_reference(axis=0, pos=0)
+                self.rollMotor.motor.set_actual_position(position=0)
                 print("Found Roll Home, set as Zero")
                 break
         
@@ -105,14 +105,14 @@ class ControllerArm():
         homingDirection = 1
         homingAttempts = 0
         nudgeAngle = 0
-        self.tiltMotor.motor.set_position_reference(pos=0, axis=0)
+        self.tiltMotor.motor.set_actual_position(position=0)
         while(self.isHoming == True):
             self.tiltMotor.setMotorTaget(360 * homingDirection)
             start_position = self.tiltMotor.getPositionAngle()
             while(self.tiltMotor.getIsMoving()):
                 if(self.tiltMotor.getGPI(TILT_HOME_GPI) == 1):
                     self.tiltMotor.stop()
-                    self.tiltMotor.motor.set_position_reference(axis=0, pos=0)
+                    self.tiltMotor.motor.set_actual_position(position=0)
                     self.isHoming = False
                     print("Found Home..: ")
                     break

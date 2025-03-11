@@ -13,12 +13,13 @@ import time
 
 pytrinamic.show_info()
 
-# for serial interface
+#Connection over RS485 module-IDs need to start from 1 not 0
 with ConnectionManager("--interface serial_tmcl --port COM36 --data-rate 9600 --module-id 1").connect() as my_interface:
 # for usb interface
 #with ConnectionManager().connect() as my_interface:
     print(my_interface)
-    module = TMCM1110(my_interface)
+    module = TMCM1110(my_interface, module_id=1)
+    
     motor = module.motors[0]
 
     # The configuration is based on our TMCM-1110
@@ -32,6 +33,7 @@ with ConnectionManager("--interface serial_tmcl --port COM36 --data-rate 9600 --
     motor.drive_settings.boost_current = 0
     motor.drive_settings.microstep_resolution = motor.ENUM.MicrostepResolution256Microsteps
     print(motor.drive_settings)
+
 
     # preparing linear ramp settings
     motor.linear_ramp.max_acceleration = 100

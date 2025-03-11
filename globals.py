@@ -3,7 +3,7 @@ import serial.tools.list_ports
 STEP_ANGLE = 1.8
 U_STEP = 256
 FULL_STEP = (360. / STEP_ANGLE) * U_STEP
-MAX_SPEED = 200
+MAX_VELOCITY = 200
 MAX_ACCELERATION = 50
 
 
