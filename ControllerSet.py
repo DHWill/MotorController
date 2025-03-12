@@ -12,11 +12,23 @@ MAX_VELOCITY = 200
 MAX_ACCELERATION = 50
 
 class ControllerSet():
-    def __init__(self, _rollMotorController: TMCM1110, _tiltMotorController: TMCM1110, _armID:int = 0):
-        self.rollMotorController = _rollMotorController
-        self.tiltMotorController = _tiltMotorController
-        self.rollMotor = self.rollMotorController.motors[0]
-        self.tiltMotor = self.tiltMotorController.motors[0]
+    def __init__(self, _rollMotorModule: TMCM1110, _tiltMotorModule: TMCM1110, _armID:int = 0):
+
+        self.rollMotorModule = _rollMotorModule
+        self.tiltMotorModule = _tiltMotorModule
+        # self.rollMotorModule.motors.append(TMCM1110._MotorTypeA(module=self.tiltMotorModule, axis=0))
+
+        self.rollMotor = self.rollMotorModule.motors[0]
+        self.tiltMotor = self.rollMotorModule.motors[1]
+        # self.rollMotorController = self.rollMotorModule.motors[0]   
+        self.tiltMotorController = self.tiltMotorModule.motors[0] #Annoyingly, this class abstracts as axis0 only
+
+        self.setMotorModuleDefaults(self.tiltMotorController, isSlave=True)
+        self.setMotorModuleDefaults(self.rollMotor, isSlave=False)
+
+        self.setControllerAxisRampDefaults(self.tiltMotor, isMaster=False)
+        self.setControllerAxisRampDefaults(self.rollMotor, isMaster=True)
+
         self.armID = _armID
         self.tiltTargetTargetAngle = 0
         self.rollTargetTargetAngle = 0
@@ -25,24 +37,40 @@ class ControllerSet():
         self.isHoming = False
         self.fullTiltAngle = 80
         self.fullRollAngle = 360
+
     
-    def setMotorDefault(self, _motor:TMCM1110._MotorTypeA = None):
-        _motor.set_actual_position(0)
-        _motor.drive_settings.set_max_current(100)
-        _motor.drive_settings.set_standby_current(70)
-        _motor.drive_settings.set_boost_current(30)     #Check this 
-        _motor.drive_settings.set_microstep_resolution(TMCM1110._MotorTypeA.ENUM.MicrostepResolution256Microsteps)  #U_STEP not
+    def setMotorModuleDefaults(self, _motorController:TMCM1110._MotorTypeA = None, isSlave:bool = False):
+        _motorController.drive_settings.set_max_current(50)
+        _motorController.drive_settings.set_standby_current(10)
+        # _motorController.drive_settings.set_boost_current(30)     #Check this 
+        _motorController.drive_settings.set_microstep_resolution(TMCM1110._MotorTypeA.ENUM.MicrostepResolution256Microsteps)  #U_STEP not
 
-        _motor.linear_ramp.set_max_acceleration(MAX_ACCELERATION)
-        _motor.linear_ramp.set_max_velocity(MAX_VELOCITY)
-        # _motor.linear_ramp.set_ramp_enabled()     #CheckThis
+        _motorController.stallguard2.set_filter(enable_filter=1)
+        _motorController.stallguard2.set_threshold(20)
+        _motorController.stallguard2.set_stop_velocity(velocity=20)
 
-        _motor.stallguard2.set_filter(enable_filter=1)
-        _motor.stallguard2.set_threshold(8)
-        _motor.stallguard2.set_stop_velocity(velocity=2)
-
+        if(isSlave):
+            _motorController.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.StepDirectionMode, value=1)
         
-        _motor.stop()
+        _motorController.stop()
+
+    def setControllerAxisRampDefaults(self, _motorController:TMCM1110._MotorTypeA = None, isMaster:bool = False):
+        #Acelleration   0 -> 2047
+        #alower_limit = 2^ramp_div−pulse_div −1
+        #aupper_limit = 2^ramp_div−pulse_div+12 −1
+        #Velocity       0 -> 2047
+
+        #These are tuned for light velocity/acelleration headroom.
+        _motorController.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.RampDivisor, value=12)
+        _motorController.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.PulseDivisor, value=4)  
+        
+        
+        if(isMaster):
+            # _motorController.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.DoubleEdgeSteps, value=1) This didnt mux gears 
+            pass
+
+
+    
 
     def angleToMicrostep(self, angle) -> int:
         ret = FULL_STEP/360.
@@ -60,6 +88,17 @@ class ControllerSet():
     # eg. extreme rotate left and back would be: 
     # -90, -90, speed, acceleration
     # ONLY USED ONCE HOMED
+
+    #Annoyingly Axis parmeters not abstracted in motor class for non axis0
+    def getActualPosition(self, _axis:int=0):
+        return self.rollMotorModule.get_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.ActualPosition, axis=_axis,signed=True)
+    
+    def setActualPosition(self, _axis:int=0, _value:int=0):
+        return self.rollMotorModule.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.ActualPosition, axis=_axis,signed=True, value=_value)
+    
+    def setMaxAcceleration(self, _axis:int=0, _value:int=0):
+        return self.rollMotorModule.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.MaxAcceleration, axis=_axis,signed=False, value=_value)
+    
     def setTargetRotationAngle(self, _rollAngle:float = 0, _tiltAngle:float = 0, _velocity:int = 100, _acceleration:int = 50):
         
         # Clipping to 'fullRotationAngle' (distance between limit switch left/right)
@@ -70,6 +109,7 @@ class ControllerSet():
 
         # _rollAngle = rollCentreAngle + rollAngle 
         # _tiltAngle = tiltCentreAngle + tiltAngle
+
         _tiltAngle = tiltAngle
         _rollAngle = rollAngle
 
@@ -99,7 +139,8 @@ class ControllerSet():
             _rollVelocity = _velocity * mult
             _rollAcceleration = _acceleration * mult
 
-
+        self.rollMotor.linear_ramp.set_max_acceleration(int(_rollAcceleration))
+        self.tiltMotor.linear_ramp.set_max_acceleration(int(_tiltAcceleration))
         self.rollMotor.move_to(position= int(self.angleToMicrostep(_rollAngle)), velocity=int(_rollVelocity))
         self.tiltMotor.move_to(position= int(self.angleToMicrostep(_tiltAngle)), velocity=int(_tiltVelocity))
 
@@ -118,23 +159,48 @@ class ControllerSet():
     def zeroMotors(self):
         self.rollMotor.set_actual_position(position=0)
         self.tiltMotor.set_actual_position(position=0)
+
+    def set_target_position(self, _angle):
+        #0: position mode. Steps are generated, when
+        #the parameters actual position and target
+        #position differ. Trapezoidal speed ramps are
+        #provided.
+        self.rollMotor.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.RampType, value=1)
+        self.tiltMotor.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.RampType, value=1)
+
+        self.rollMotor.set_target_position(position=int(self.angleToMicrostep(_angle)))
+        self.tiltMotor.set_target_position(position=int(self.angleToMicrostep(_angle)))
     
-    def rollDisc(self, _angle, _velocity):
-        self.rollMotor.move_to(position=int(self.angleToMicrostep(_angle)), velocity=int(_velocity))
+    def rollDisc(self, _angle, _velocity, _accelleration=50):
+        self.zeroMotors()
+        #
+        # self.rollMotor.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.RampType, value=2)
+        # self.tiltMotor.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.RampType, value=2)
+        
+        # self.rollMotor.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.RampDivisor, value=5)
+        # self.tiltMotor.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.RampDivisor, value=5)
+
+        self.rollMotor.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.MaxAcceleration, value=_accelleration)
+        self.tiltMotor.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.MaxAcceleration, value=_accelleration)
+        
         self.tiltMotor.move_to(position=int(self.angleToMicrostep(_angle)), velocity=int(_velocity))
+        self.rollMotor.move_to(position=int(self.angleToMicrostep(_angle)), velocity=int(_velocity))
+
+        # self.rollMotorModule.move_to(axis=0, position=int(self.angleToMicrostep(_angle)), velocity=int(_velocity))
+        # self.rollMotorModule.move_to(axis=1, position=int(self.angleToMicrostep(_angle)), velocity=int(_velocity))
     
     def homeMotors(self):
         self.isHoming = True
-        self.rollMotor.stop()
-        self.tiltMotor.stop()
+        self.rollMotorModule.stop(axis=0)
+        self.rollMotorModule.stop(axis=1)
 
-        self.setMotorDefault(self.rollMotor)
-        self.setMotorDefault(self.tiltMotor)
+        # self.setMotorModuleDefaults(self.rollMotorController, isSlave=False)
+        # self.setMotorModuleDefaults(self.tiltMotorController, isSlave=True)
 
         self.rollDisc(_angle=-360, _velocity=100)
 
 
-        while(self.rollMotorController.get_digital_input(ROLL_HOME_GPI) == 0):
+        while(self.rollMotorModule.get_digital_input(ROLL_HOME_GPI) == 0):
             pass
 
         self.stopMotors()
@@ -144,7 +210,7 @@ class ControllerSet():
         
         homingDirection = 1
         homingAttempts = 0
-        nudgeStep = self.angleToMicrostep(10)
+        nudgeStep = self.angleToMicrostep(15)
         self.tiltMotor.set_actual_position(position=0)
         homingPath = self.angleToMicrostep(360)
 
@@ -155,14 +221,14 @@ class ControllerSet():
             start_position = self.tiltMotor.get_actual_position()
 
             while(self.getIsMoving()):
-                if(self.tiltMotorController.get_digital_input(TILT_HOME_GPI) == 1):
+                if(self.tiltMotorModule.get_digital_input(TILT_HOME_GPI) == 1):
                     self.tiltMotor.stop()
                     self.tiltMotor.set_actual_position(0)
                     self.isHoming = False
                     print("Found Home..: ")
                     break
                 
-                elif((self.tiltMotorController.get_digital_input(TILT_LIMIT_GPI) == 0) and 
+                elif((self.tiltMotorModule.get_digital_input(TILT_LIMIT_GPI) == 0) and 
                      (abs(start_position - self.tiltMotor.get_actual_position()) > nudgeStep)):
                     
                     self.tiltMotor.stop()
@@ -186,7 +252,7 @@ class ControllerSet():
         return _ret
 
     def hasHitLimits(self):
-        return self.tiltMotor.getGPI(port=TILT_LIMIT_GPI)
+        return self.tiltMotorModule.get_digital_input(port=TILT_LIMIT_GPI)
 
     def getIsMoving(self) -> bool:
         if((self.tiltMotor.get_actual_velocity() == 0) and (self.rollMotor.get_actual_velocity() == 0)):
@@ -197,5 +263,7 @@ class ControllerSet():
 
     def waitPositionReached(self):
         while(self.getPositionReached() == False):
+            # print("self.tiltMotor.get_actual_position()", self.microstepToAngle(self.tiltMotor.get_actual_position()) - self.microstepToAngle(self.rollMotor.get_actual_position()))
+            # print("self.rollMotor.get_actual_position()", self.microstepToAngle(self.rollMotor.get_actual_position()))
             pass
 

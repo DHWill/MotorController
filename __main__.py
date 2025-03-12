@@ -65,7 +65,7 @@ def get_paired_motors_on_bus(bus_connection:ConnectionManager = None) -> list[Co
             print("couldn't find tilt motor:", id+1)
 
         if(_rollController and _tiltController):
-            controller_arm__array.append(ControllerSet(_rollMotorController=_rollController, _tiltMotorController= _tiltController, _armID = armId))
+            controller_arm__array.append(ControllerSet(_rollMotorModule=_rollController, _tiltMotorModule= _tiltController, _armID = armId))
             armId += 1
     
     return controller_arm__array
@@ -79,11 +79,11 @@ def get_paired_motors_on_bus(bus_connection:ConnectionManager = None) -> list[Co
 #     print(_motor.getGPI(port=1))
 # # _motor.findHome(gpi_pin=0)
 rotationSequences1 = [
-    (-85, -45, 200, 20 ),
-    (90, 45, 200, 20 ),
-    (0, 0, 200, 20 ),
-    (-85, 45, 200, 20 ),
-    (85, -45, 200, 20 ),
+    (-85, -35, 1000, 1000 ),
+    (180, 35, 1000, 1000 ),
+    (0, 0, 1000, 1000 ),
+    (-135, 35, 1000, 1000 ),
+    (85, -35, 1000, 1000 ),
 ]
     
 # controllerArm = _controllerArm[0]
@@ -103,30 +103,36 @@ if(__name__ == "__main__"):
     connected_arms = get_paired_motors_on_bus(bus_connection=interface_connection)
     setup_pool = []
 
-    # controllerSet1 = connected_arms[0]
+    controllerSet1 = connected_arms[0]
     # # print(controllerSet1.rollMotorController.list_features())
-    # # controllerSet1.homeMotors()
     
-    for arm in connected_arms:
-        t = threading.Thread(target=arm.homeMotors)
-        setup_pool.append(t)
+    controllerSet1.stopMotors()
+    controllerSet1.zeroMotors()
+    controllerSet1.rollDisc(_angle =-(360 * 2), _velocity =1000, _accelleration=2000)
+    while(controllerSet1.getIsMoving()):
+        print("Velocity", controllerSet1.rollMotor.get_actual_velocity())
+    # controllerSet1.homeMotors()
     
-    for t in setup_pool:
-        t.start()
+    # for arm in connected_arms:
+    #     t = threading.Thread(target=arm.homeMotors)
+    #     setup_pool.append(t)
+    
+    # for t in setup_pool:
+    #     t.start()
 
     
-    # Catch the Rest Setting up 
-    settingUp = True
-    while settingUp:
-        settingUp = False
-        for arm in connected_arms:
-            if(arm.isHoming == True):
-                settingUp = True
+    # # Catch the Rest Setting up 
+    # settingUp = True
+    # while settingUp:
+    #     settingUp = False
+    #     for arm in connected_arms:
+    #         if(arm.isHoming == True):
+    #             settingUp = True
     
 
-    # while len(setup_pool) > 0:
-    for t in setup_pool:
-        t.join()
+    # # while len(setup_pool) > 0:
+    # for t in setup_pool:
+    #     t.join()
     
     # for arm in connected_arms:
     #     # arm.setArmLimitSwitches(False)
