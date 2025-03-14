@@ -18,12 +18,13 @@ class ControllerSet():
 
         self.rollMotorModule = _rollMotorModule
         self.tiltMotorModule = _tiltMotorModule
-        # self.rollMotorModule.motors.append(TMCM1110._MotorTypeA(module=self.tiltMotorModule, axis=0))
 
         self.rollMotor = self.rollMotorModule.motors[0]
         self.tiltMotor = self.rollMotorModule.motors[1]
-        # self.rollMotorController = self.rollMotorModule.motors[0]   
         self.tiltMotorController = self.tiltMotorModule.motors[0] #Annoyingly, this class abstracts as axis0 only
+
+        self.stopMotors()
+        self.zeroMotors()
 
         self.setMotorModuleDefaults(self.tiltMotorController, isSlave=True)
         self.setMotorModuleDefaults(self.rollMotor, isSlave=False)
@@ -42,8 +43,8 @@ class ControllerSet():
 
     
     def setMotorModuleDefaults(self, _motorController:TMCM1110._MotorTypeA = None, isSlave:bool = False):
-        _motorController.drive_settings.set_max_current(50)
-        _motorController.drive_settings.set_standby_current(10)
+        _motorController.drive_settings.set_max_current(100)
+        _motorController.drive_settings.set_standby_current(50)
         # _motorController.drive_settings.set_boost_current(30)     #Check this 
         _motorController.drive_settings.set_microstep_resolution(TMCM1110._MotorTypeA.ENUM.MicrostepResolution256Microsteps)  #U_STEP not
 
