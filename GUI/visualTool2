@@ -1,0 +1,80 @@
+import dearpygui.dearpygui as dpg
+import random
+import time
+import threading
+from pytrinamic.modules import TMCM1110
+# Constants
+DURATION = 0.5  # Seconds to display
+UPDATE_RATE = 0.05  # Update interval (20 FPS)
+BUFFER_SIZE = int(DURATION / UPDATE_RATE)  # Number of points in buffer
+x_data = [i * UPDATE_RATE for i in range(BUFFER_SIZE)]  # Time values
+class ControllerData:
+    def __init__(self, plotLabel: str, axis_parameter: str, isBoard: bool = False):
+        self.plotLabel = plotLabel
+        self.axis_parameter = axis_parameter
+        self.isBoard = isBoard
+        self.yData = [0] * BUFFER_SIZE 
+class DataGenerator:
+    def __init__(self):
+        self.data = [
+            ControllerData("position", TMCM1110._MotorTypeA.AP.ActualPosition, False),
+            ControllerData("current", TMCM1110._MotorTypeA.AP.SmartEnergyActualCurrent, True),
+            ControllerData("velocity", TMCM1110._MotorTypeA.AP.ActualVelocity, False),
+            ControllerData("acceleration", TMCM1110._MotorTypeA.AP.ActualAcceleration, False),
+        ]
+        self.lock = threading.Lock()
+        self.running = True
+    
+    def axis_parameter(self, cmd):
+        return random.uniform(-1, 1)
+    
+    def generate_data(self):
+        while self.running:
+            with self.lock:
+                for data in self.data:
+                    value = self.axis_parameter(data.axis_parameter)
+                    data.yData.append(value)
+                    data.yData.pop(0) 
+            time.sleep(UPDATE_RATE)
+    def get_values(self):
+        with self.lock:
+            return self.data  
+    def stop(self):
+        self.running = False
+
+
+data_source = DataGenerator()
+data_thread = threading.Thread(target=data_source.generate_data, daemon=True)
+data_thread.start()
+
+
+
+
+def update_plot():
+    new_values = data_source.get_values()
+    for data in new_values:
+        dpg.set_value(data.plotLabel, [x_data, data.yData])  # Update each line
+
+
+
+dpg.create_context()
+with dpg.window(label="Motor Controller", width=700, height=500):
+    with dpg.plot(label="Real-Time Data", height=300, width=600):
+        dpg.add_plot_axis(dpg.mvXAxis, label="Time (s)", tag="x_axis")
+        with dpg.plot_axis(dpg.mvYAxis, label="Signal", tag="y_axis"):
+            for data in data_source.data:
+                dpg.add_line_series(x_data, data.yData, label=data.plotLabel, tag=data.plotLabel)
+
+
+dpg.create_viewport(title="Motor_Controller", width=700, height=500)
+dpg.setup_dearpygui()
+dpg.show_viewport()
+# Keep updating the GUI until it closes
+while dpg.is_dearpygui_running():
+    update_plot()  # Call update function
+    dpg.render_dearpygui_frame()  # **Render new frame**
+    time.sleep(UPDATE_RATE)  # **Control update rate**
+# Cleanup
+data_source.stop()
+data_thread.join()
+dpg.destroy_context()

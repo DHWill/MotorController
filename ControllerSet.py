@@ -11,6 +11,8 @@ FULL_STEP = (360. / STEP_ANGLE) * U_STEP
 MAX_VELOCITY = 200
 MAX_ACCELERATION = 50
 
+dict
+
 class ControllerSet():
     def __init__(self, _rollMotorModule: TMCM1110, _tiltMotorModule: TMCM1110, _armID:int = 0):
 
@@ -64,13 +66,6 @@ class ControllerSet():
         _motorController.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.RampDivisor, value=12)
         _motorController.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.PulseDivisor, value=4)  
         
-        
-        if(isMaster):
-            # _motorController.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.DoubleEdgeSteps, value=1) This didnt mux gears 
-            pass
-
-
-    
 
     def angleToMicrostep(self, angle) -> int:
         ret = FULL_STEP/360.
@@ -82,6 +77,9 @@ class ControllerSet():
         ret = 360./FULL_STEP
         ret *= microstep
         return ret
+    
+    def get_roll_axis_parameter(self, ap_type:int = None):
+        self.rollMotor.get_axis_parameter()
 
 
     #This Takes ANGLE in Degrees relative to centre reference (0, 0) 
@@ -164,7 +162,8 @@ class ControllerSet():
         #0: position mode. Steps are generated, when
         #the parameters actual position and target
         #position differ. Trapezoidal speed ramps are
-        #provided.
+        #provided.```````````````````
+        # -*+9`
         self.rollMotor.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.RampType, value=1)
         self.tiltMotor.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.RampType, value=1)
 
@@ -172,31 +171,15 @@ class ControllerSet():
         self.tiltMotor.set_target_position(position=int(self.angleToMicrostep(_angle)))
     
     def rollDisc(self, _angle, _velocity, _accelleration=50):
-        self.zeroMotors()
-        #
-        # self.rollMotor.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.RampType, value=2)
-        # self.tiltMotor.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.RampType, value=2)
-        
-        # self.rollMotor.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.RampDivisor, value=5)
-        # self.tiltMotor.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.RampDivisor, value=5)
-
         self.rollMotor.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.MaxAcceleration, value=_accelleration)
         self.tiltMotor.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.MaxAcceleration, value=_accelleration)
         
         self.tiltMotor.move_to(position=int(self.angleToMicrostep(_angle)), velocity=int(_velocity))
         self.rollMotor.move_to(position=int(self.angleToMicrostep(_angle)), velocity=int(_velocity))
-
-        # self.rollMotorModule.move_to(axis=0, position=int(self.angleToMicrostep(_angle)), velocity=int(_velocity))
-        # self.rollMotorModule.move_to(axis=1, position=int(self.angleToMicrostep(_angle)), velocity=int(_velocity))
     
     def homeMotors(self):
+        self.stopMotors()
         self.isHoming = True
-        self.rollMotorModule.stop(axis=0)
-        self.rollMotorModule.stop(axis=1)
-
-        # self.setMotorModuleDefaults(self.rollMotorController, isSlave=False)
-        # self.setMotorModuleDefaults(self.tiltMotorController, isSlave=True)
-
         self.rollDisc(_angle=-360, _velocity=100)
 
 
@@ -267,3 +250,44 @@ class ControllerSet():
             # print("self.rollMotor.get_actual_position()", self.microstepToAngle(self.rollMotor.get_actual_position()))
             pass
 
+
+
+
+
+
+
+# from multiprocessing import shared_memory, Process
+# import numpy as np
+
+# def worker(shared_mem_name, shape, dtype):
+#     # Attach to existing shared memory
+#     existing_shm = shared_memory.SharedMemory(name=shared_mem_name)
+#     array = np.ndarray(shape, dtype=dtype, buffer=existing_shm.buf)
+    
+#     # Modify shared memory (example: multiply by 2)
+#     array *= 2
+
+#     # Close the shared memory (but do not unlink)
+#     existing_shm.close()
+
+# if __name__ == "__main__":
+#     # Create a NumPy array and shared memory
+#     shape = (5,)
+#     dtype = np.int64
+#     data = np.array([1, 2, 3, 4, 5], dtype=dtype)
+
+#     shm = shared_memory.SharedMemory(create=True, size=data.nbytes)
+#     shared_array = np.ndarray(shape, dtype=dtype, buffer=shm.buf)
+#     shared_array[:] = data[:]  # Copy data to shared memory
+
+#     # Create and start worker process
+#     p = Process(target=worker, args=(shm.name, shape, dtype))
+#     p.start()
+#     p.join()
+
+#     # Read updated data from shared memory
+#     print("Updated array:", shared_array)
+
+#     # Cleanup
+#     shm.close()
+#     shm.unlink()  # Unlink after all processes are done

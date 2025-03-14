@@ -56,7 +56,7 @@ def get_paired_motors_on_bus(bus_connection:ConnectionManager = None) -> list[Co
             _rollController = TMCM1110(bus_connection, module_id=id)
             print("rollMotor: " , _rollController.get_global_parameter(gp_type=TMCM1110.GP0.SerialAddress, bank=0, signed=False))
         except:
-            print("couldn't find roll motor:", id)
+            print("couldn't find roll motor:", id) 
         
         try:
             _tiltController = TMCM1110(bus_connection, module_id=id+1)
