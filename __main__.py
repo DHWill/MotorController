@@ -52,11 +52,14 @@ if(__name__ == "__main__"):
     guiThread.start()
 
 
-    gui.set_motor(controllerSet1.rollMotor)
+    # gui.set_motor(controllerSet1.rollMotor)
     controllerSet1.rollDisc(_angle =-(360 * 2), _velocity =1000, _accelleration=2000)
 
+    gui.start_plot()
+    
     while(controllerSet1.getIsMoving()):
-        gui.get_data()
+        gui.get_data(controllerSet1.rollMotor)
+    
     
     while True:
         time.sleep(1)

@@ -4,7 +4,7 @@ import time
 import threading
 from pytrinamic.modules import TMCM1110
 # Constants
-DURATION = 0.5  # Seconds to display
+DURATION = 1  # Seconds to display
 UPDATE_RATE = 0.05  # Update interval (20 FPS)
 BUFFER_SIZE = int(DURATION / UPDATE_RATE)  # Number of points in buffer
 x_data = [i * UPDATE_RATE for i in range(BUFFER_SIZE)]  # Time values
@@ -16,8 +16,10 @@ class ControllerDataType:
         self.axis_parameter_max = axis_parameter_max
         self.isBoard = isBoard
         self.axis_parameter_max_value = 0
-        self.scalar = 0.2
-        self.yData = [0] * BUFFER_SIZE 
+        self.scalar = 1.
+        # self.yData = [0] * BUFFER_SIZE 
+        self.yData = []
+        self.xData = []
 
 class Visual():
     def __init__(self) -> None:
@@ -27,38 +29,63 @@ class Visual():
             ControllerDataType("velocity", TMCM1110._MotorTypeA.AP.ActualVelocity, TMCM1110._MotorTypeA.AP.MaxVelocity, False),
             ControllerDataType("acceleration", TMCM1110._MotorTypeA.AP.ActualAcceleration, TMCM1110._MotorTypeA.AP.MaxAcceleration, False),
         ]
-        self.lock = threading.Lock()
+        # self.lock = threading.Lock()
         self.motor = None
         self.isNewData = False
+        self.start_time = time.time()
     
-    def set_motor(self, motor:TMCM1110._MotorTypeA) -> None:
-        self.motor = motor
-        for data in self.data:
-            data.axis_parameter_max_value = abs(self.motor.get_axis_parameter(ap_type=data.axis_parameter_max, signed=True))
+    # def set_motor(self, motor:TMCM1110._MotorTypeA) -> None:
     
-    def get_data(self) -> None:
+    def get_data(self, motor:TMCM1110._MotorTypeA) -> None:
         self.isNewData = True
+        if(motor != self.motor):    #If different motors update max parameters
+            self.motor = motor
+            for data in self.data:
+                data.axis_parameter_max_value = self.motor.get_axis_parameter(ap_type=data.axis_parameter_max, signed=True)
+
         for data in self.data:
-            value = abs(self.motor.get_axis_parameter(ap_type=data.axis_parameter, signed=True)) / data.axis_parameter_max_value
+            value = self.motor.get_axis_parameter(ap_type=data.axis_parameter, signed=True) / data.axis_parameter_max_value
             print(data.plotLabel, value)
             data.yData.append(value)
-            data.yData.pop(0) 
+            data.xData.append(time.time() - self.start_time)
+
+
+            # if len(data.yData) > BUFFER_SIZE:
+            #     data.yData.pop(0)
+            #     data.xData.pop(0)
+            # data.yData.pop(0)
 
     def update_plot(self) -> None:
         for data in self.data:
-            dpg.set_value(data.plotLabel, [x_data, data.yData])  # Update each line
+            dpg.set_value(data.plotLabel, [data.xData, data.yData])  # Update each line
+    
+        if self.data[0].xData:  # Ensure there's data before updating
+            latest_x = self.data[0].xData[-1]  # Get the latest time value
+            window_size = 2  # Adjust this value to control how much history is visible
+            dpg.set_axis_limits("x_axis", latest_x - window_size, latest_x)
+        
+    def start_plot(self)-> None:
+        for data in self.data:
+            data.xData.clear()
+            data.yData.clear()
+        
+        self.start_time = time.time()
 
     
     def init_gui(self) -> None:
-        dpg.create_context()
-        with dpg.window(label="Motor Controller", width=700, height=500):
-            with dpg.plot(label="Real-Time Data", height=700, width=600):
+        dpg.create_context(width=700, height=700)
+        with dpg.window(label="Motor Controller", width=700, height=700):
+            with dpg.plot(label="Motor-Stats", width=700, height=700):
                 dpg.add_plot_axis(dpg.mvXAxis, label="Time (s)", tag="x_axis",pan_stretch=True)
-                with dpg.plot_axis(dpg.mvYAxis, label="Signal", tag="y_axis"):
+                with dpg.plot_axis(dpg.mvYAxis, label="Value", tag="y_axis",pan_stretch=True):
                     for data in self.data:
-                        dpg.add_line_series(x_data, data.yData, label=data.plotLabel, tag=data.plotLabel)
+                        dpg.add_line_series(data.xData, data.yData, label=data.plotLabel, tag=data.plotLabel)
+                dpg.add_plot_legend()
+        
+        dpg.set_axis_limits("y_axis", -1.25, 1.25)  # Set Y-axis range from -1 to 1
+        dpg.set_axis_limits_auto("x_axis")
 
-        dpg.create_viewport(title="Motor_Controller", width=700, height=500)
+        dpg.create_viewport(title="Motor_Controller", width=700, height=700)
         dpg.setup_dearpygui()
         dpg.show_viewport()
         # Keep updating the GUI until it closes
