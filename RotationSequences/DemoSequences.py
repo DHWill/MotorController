@@ -1,4 +1,4 @@
-
+import math
 
 # rollAngle:float = 0, tiltAngle:float = 0, speed:int = 100, velocity:int = 50
 _spee = 70  #HERE
@@ -11,20 +11,60 @@ class RotationCommand():
         self.roll = roll
         self.tilt = tilt
 
+
 class RotationSequenceMaker():
 
     def __init__(self, _speed:int = 0, _acceleration:int = 0):
         self.speed = _speed
         self.acceleration = _acceleration
+
+    def panAxis(self, iteration:int=0, axis:int=0, limits:tuple=(0, 0), n_iterations:int=0):
+        return
     
-    class Rot:
-        RotateDiscLeft      =RotationCommand(-360, 0, speed=)
+    def calculate_ramp_time(self,current_pos, target_pos, max_accel, max_velocity, ramp_divisor, pulse_divisor):
+       # Apply divisors to get actual acceleration and velocity
+       actual_accel = max_accel / (2 ** ramp_divisor)
+       actual_velocity = max_velocity / (2 ** pulse_divisor)
+    
+       # Calculate total distance to move
+       distance = abs(target_pos - current_pos)
+    
+       # Compute acceleration and deceleration distance
+       accel_distance = (actual_velocity ** 2) / (2 * actual_accel)
+    
+       if distance < 2 * accel_distance:
+           # Triangular profile (no constant velocity phase)
+           total_time = 2 * math.sqrt(distance / actual_accel)
+       else:
+           # Trapezoidal profile
+           accel_time = actual_velocity / actual_accel
+           decel_time = accel_time
+           constant_distance = distance - 2 * accel_distance
+           constant_time = constant_distance / actual_velocity
+           total_time = accel_time + constant_time + decel_time
 
-
-
+       return total_time
+    
     
 
 
+rotationSequences1 = [
+   (-90, -55, 1000, 2000),
+   (-90, 0, 1000, 2000),
+   (-90, 55, 1000, 2000),
+   (-90, 0, 1000, 2000),
+   (-90, -55, 1000, 2000),
+   (-90, 0, 1000, 2000),
+   (-90, 55, 1000, 2000),
+   (-90, 0, 1000, 2000),
+]
+rotationSequences2 = [
+   (-85, -35, 1000, 2000),
+   (180, 35, 1000, 2000),
+   (0, 0, 1000, 2000),
+   (-135, 35, 1000, 2000),
+   (85, -35, 1000, 2000),
+]
 
 
 

@@ -5,6 +5,8 @@ from pytrinamic.modules import TMCM1110
 from GUI.visualTool import Visual
 import threading
 import time
+from RotationSequences.DemoSequences import rotationSequences2
+import random
 
 
 #Master ID is 2 start from 3:
@@ -52,27 +54,38 @@ if(__name__ == "__main__"):
     guiThread.start()
 
 
-    # gui.set_motor(controllerSet1.rollMotor)
-    controllerSet1.rollDisc(_angle =-(360 * 2), _velocity =1000, _accelleration=2000)
-
+    # gui.set_motor(controllerSet1.rollMotor)``
     gui.start_plot()
     
-    while(controllerSet1.getIsMoving()):
-        gui.get_data(controllerSet1.rollMotor)
+    test = 0
+    while(True):
+        controllerSet1.homeMotors2()
+        print("Test: ", test)
+        test += 1
+        ra, ta, vel, accel = rotationSequences2[random.randrange(0, len(rotationSequences2) -1)]
+        print("_rollAngle: ", ra, "_tiltAngle: ", ta, " _speed: ", vel, "_acceleration: ", accel)
+        controllerSet1.setTargetRotationAngle(_rollAngle=ra, _tiltAngle=ta, _velocity=vel, _acceleration=accel)
+        while(controllerSet1.getIsMoving()):
+            gui.get_data(controllerSet1)
     
     
-    while True:
-        time.sleep(1)
-        # print("Velocity", controllerSet1.rollMotor.get_actual_velocity())
+    # controllerSet1.rollDisc(_angle =-(360 * 2), _velocity =1000, _accelleration=2000)
 
-    #while True:
-    #    for sequence in range(len(rotationSequences1)):
-    #        wait_all_inposition(connected_arms)
-    #        time.sleep(1)
-    #        for arm in connected_arms:
-    #            if(arm.getPositionReached()):
-    #                ra, ta, vel, accel = rotationSequences1[arm.sequencePosition]
-    #                print("_rollAngle: ", ra, "_tiltAngle: ", ta, " _speed: ", vel, "_acceleration: ", accel)
-    #                arm.setTargetRotationAngle(_rollAngle=ra, _tiltAngle=ta, _velocity=vel, _acceleration=accel)
-    #                arm.sequencePosition += 1 
-    #                arm.sequencePosition %= len(rotationSequences1)
+    while(controllerSet1.getIsMoving()):
+        gui.get_data(controllerSet1)
+    
+    
+    # while True:
+    #     time.sleep(1)
+    #     # print("Velocity", controllerSet1.rollMotor.get_actual_velocity())
+
+    while True:
+        for sequence in range(len(rotationSequences2)):
+            time.sleep(1)
+            ra, ta, vel, accel = rotationSequences2[sequence]
+            print("_rollAngle: ", ra, "_tiltAngle: ", ta, " _speed: ", vel, "_acceleration: ", accel)
+            controllerSet1.setTargetRotationAngle(_rollAngle=ra, _tiltAngle=ta, _velocity=vel, _acceleration=accel)
+            controllerSet1.sequencePosition += 1 
+            controllerSet1.sequencePosition %= len(rotationSequences2)
+            while(controllerSet1.getIsMoving()):
+                gui.get_data(controllerSet1)

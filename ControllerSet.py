@@ -1,6 +1,7 @@
 # from globals import *
-from MotorController import MotorController
 from pytrinamic.modules import TMCM1110
+import math
+import time
 
 ROLL_HOME_GPI = 1
 TILT_HOME_GPI = 1
@@ -8,10 +9,14 @@ TILT_LIMIT_GPI = 2  #Hit Limit Switch (This should be in interrupt)
 STEP_ANGLE = 1.8
 U_STEP = 256
 FULL_STEP = (360. / STEP_ANGLE) * U_STEP
-MAX_VELOCITY = 200
-MAX_ACCELERATION = 50
+MAX_VELOCITY = 1000
+MAX_ACCELERATION = 2000
 
-dict
+HOME_VELOCITY = 500
+HOMING_NUDGE_ANGLE = 10
+
+# This is configured for master (roll motor) -> slave (tilt motor) control, 
+# in the attempt to tighten steps between the two meshed motors
 
 class ControllerSet():
     def __init__(self, _rollMotorModule: TMCM1110, _tiltMotorModule: TMCM1110, _armID:int = 0):
@@ -40,8 +45,17 @@ class ControllerSet():
         self.isHoming = False
         self.fullTiltAngle = 80
         self.fullRollAngle = 360
+        self.ramp_devisor = 12
+        self.pulse_devsor = 4
 
-    
+        #Master Controller has both end switches, switch the polarity for twinned 2 wire interrupt
+        # self.rollMotorModule.set_axis_parameter(ap_type=TMCM1110.GP0.EndSwitchPolarity, value=1)
+        # self.disable_limit_switches(_motorModule = self.rollMotorModule, _axis = 1, _value = 0)
+
+    def disable_limit_switches(self, _motorModule:TMCM1110 = None, _axis:int = 0, _value:int = 1):
+        _motorModule.set_axis_parameter(axis=_axis, ap_type=TMCM1110._MotorTypeA.AP.LeftLimitSwitchDisable, value=_value)
+        _motorModule.set_axis_parameter(axis=_axis, ap_type=TMCM1110._MotorTypeA.AP.RightLimitSwitchDisable, value=_value)
+
     def setMotorModuleDefaults(self, _motorController:TMCM1110._MotorTypeA = None, isSlave:bool = False):
         _motorController.drive_settings.set_max_current(100)
         _motorController.drive_settings.set_standby_current(50)
@@ -150,6 +164,23 @@ class ControllerSet():
 
     def setArmLimitSwitches(self, _isLimiting:bool = False):
         pass
+
+
+
+
+
+
+
+  #  # Example usage:
+  #  current_position = 0
+  #  target_position = 10000
+  #  max_acceleration = 5000  # steps/s^2
+  #  max_velocity = 2000  # steps/s
+  #  ramp_divisor = 2
+  #  pulse_divisor = 1
+#
+  #  time_required = calculate_ramp_time(current_position, target_position, max_acceleration, max_velocity, ramp_divisor, pulse_divisor)
+  #  print(f"Total ramp time: {time_required:.2f} seconds")
     
     def stopMotors(self):
         self.rollMotor.stop()
@@ -171,7 +202,7 @@ class ControllerSet():
         self.rollMotor.set_target_position(position=int(self.angleToMicrostep(_angle)))
         self.tiltMotor.set_target_position(position=int(self.angleToMicrostep(_angle)))
     
-    def rollDisc(self, _angle, _velocity, _accelleration=50):
+    def rollDisc(self, _angle, _velocity, _accelleration=MAX_ACCELERATION):
         self.rollMotor.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.MaxAcceleration, value=_accelleration)
         self.tiltMotor.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.MaxAcceleration, value=_accelleration)
         
@@ -181,15 +212,19 @@ class ControllerSet():
     def homeMotors(self):
         self.stopMotors()
         self.isHoming = True
-        self.rollDisc(_angle=-360, _velocity=100)
+        self.rollDisc(_angle=-360, _velocity=HOME_VELOCITY, _accelleration=MAX_ACCELERATION)
 
 
-        while(self.rollMotorModule.get_digital_input(ROLL_HOME_GPI) == 0):
+        while(self.rollMotorModule.get_digital_input(ROLL_HOME_GPI) == 1):
             pass
 
         self.stopMotors()
         self.rollMotor.set_actual_position(position=0)
         print("Found Roll Home, set as Zero")
+
+        #Master Controller has both end switches, switch the polarity for twinned 2 wire interrupt
+        self.rollMotorModule.set_global_parameter(gp_type=TMCM1110.GP0.EndSwitchPolarity, bank=0, value=1)
+        self.disable_limit_switches(_motorModule = self.rollMotorModule, _axis = 1, _value=0)
         
         
         homingDirection = 1
@@ -201,7 +236,7 @@ class ControllerSet():
         while(self.isHoming == True):
             homingPath *= homingDirection
             
-            self.tiltMotor.move_to(position=homingPath, velocity=100)
+            self.tiltMotor.move_to(position=homingPath, velocity=HOME_VELOCITY)
             start_position = self.tiltMotor.get_actual_position()
 
             while(self.getIsMoving()):
@@ -223,8 +258,63 @@ class ControllerSet():
                     break
 
         self.isHoming = False
-
     
+    def homeMotors2(self):
+        self.stopMotors()
+        self.isHoming = True
+
+        self.disable_limit_switches(self.rollMotorModule, _axis = 1, _value = 1) 
+
+        ##Home Roll
+        self.rollDisc(_angle=-360, _velocity=HOME_VELOCITY, _accelleration=MAX_ACCELERATION)
+        while(self.rollMotorModule.get_digital_input(ROLL_HOME_GPI) == 1):
+            pass
+        self.stopMotors()
+        self.rollMotor.set_actual_position(position=0)
+        print("Found Roll Home, set as Zero")
+        ##########################################################################################
+
+        ##Home Tilt
+        #Master Controller has both end switches, switch the polarity for twinned 2 wire interrupt
+        self.tiltMotor.set_actual_position(0)
+        
+        self.rollMotorModule.set_global_parameter(gp_type=TMCM1110.GP0.EndSwitchPolarity, bank=0, value=1)
+        self.disable_limit_switches(_motorModule = self.rollMotorModule, _axis = 1, _value=0)
+        
+        self.tiltMotor.move_to(int(-FULL_STEP), velocity=HOME_VELOCITY)
+        while(self.getIsMoving() == True):
+            pass
+        self.tiltMotor.stop()
+        self.tiltMotor.set_actual_position(0)
+        
+        #Nudge Forward with limit switch disable
+        self.disable_limit_switches(self.rollMotorModule, _axis = 1, _value = 1) 
+        self.tiltMotor.move_to(self.angleToMicrostep(HOMING_NUDGE_ANGLE), velocity=HOME_VELOCITY)
+        while(self.getIsMoving() == True):
+            pass
+        self.tiltMotor.stop()
+        self.disable_limit_switches(self.rollMotorModule, _axis = 1, _value = 0) 
+        
+        #Move to Other Extreme
+        self.tiltMotor.move_to(int(FULL_STEP), velocity=HOME_VELOCITY)
+        while(self.getIsMoving() == True):
+            pass
+        self.tiltMotor.stop()
+        self.fullTiltAngle = self.microstepToAngle(self.tiltMotor.get_actual_position())
+
+        self.disable_limit_switches(self.rollMotorModule, _axis = 1, _value = 1) 
+        self.tiltMotor.move_to(int(self.angleToMicrostep(self.fullTiltAngle/2)), velocity=HOME_VELOCITY)
+        while(self.getIsMoving() == True):
+            pass
+        self.tiltMotor.stop()
+
+
+        print("Found Tilt Home: ", self.microstepToAngle(self.tiltMotor.get_actual_position()),  "deg set as Zero, re-enabling limit switches")
+        self.tiltMotor.set_actual_position(0)
+        self.disable_limit_switches(self.rollMotorModule, _axis = 1, _value = 0) 
+
+        ##########################################################################################
+
     def getPositionReached(self) -> bool:
         _ret = False
         if((self.tiltMotor.get_position_reached()) and (self.rollMotor.get_position_reached())):
@@ -235,7 +325,7 @@ class ControllerSet():
             _ret = True
         return _ret
 
-    def hasHitLimits(self):
+    def hasHitLimits(self) -> bool:
         return self.tiltMotorModule.get_digital_input(port=TILT_LIMIT_GPI)
 
     def getIsMoving(self) -> bool:
