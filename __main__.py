@@ -59,12 +59,18 @@ if(__name__ == "__main__"):
     
     test = 0
     while(True):
-        controllerSet1.homeMotors2()
+#        print("Tilt: ", controllerSet1.tiltMotorModule.get_digital_input(1))
+#        print("Roll: ", controllerSet1.rollMotorModule.get_digital_input(1))
         print("Test: ", test)
+        print("homing")
+        controllerSet1.homeMotors3()
+    
         test += 1
-        ra, ta, vel, accel = rotationSequences2[random.randrange(0, len(rotationSequences2) -1)]
-        print("_rollAngle: ", ra, "_tiltAngle: ", ta, " _speed: ", vel, "_acceleration: ", accel)
-        controllerSet1.setTargetRotationAngle(_rollAngle=ra, _tiltAngle=ta, _velocity=vel, _acceleration=accel)
+        # ra, ta, vel, accel = rotationSequences2[random.randrange(0, len(rotationSequences2) -1)]
+        ra = random.randrange(0, 720)
+        ta = random.randrange(-45, 45)
+        print("Random Position", ra, ta)
+        controllerSet1.setTargetRotationAngle(_rollAngle=ra, _tiltAngle=ta, _velocity=1000, _acceleration=500)
         while(controllerSet1.getIsMoving()):
             gui.get_data(controllerSet1)
     

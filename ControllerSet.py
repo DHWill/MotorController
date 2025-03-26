@@ -4,8 +4,12 @@ import math
 import time
 
 ROLL_HOME_GPI = 1
+
 TILT_HOME_GPI = 1
 TILT_LIMIT_GPI = 2  #Hit Limit Switch (This should be in interrupt)
+TILT_OPTICAL_IS_BACK = 1
+TILT_OPTICAL_IS_FORWARD = 0
+
 STEP_ANGLE = 1.8
 U_STEP = 256
 FULL_STEP = (360. / STEP_ANGLE) * U_STEP
@@ -38,15 +42,15 @@ class ControllerSet():
         self.setControllerAxisRampDefaults(self.rollMotor, isMaster=True)
 
         self.armID = _armID
-        self.tiltTargetTargetAngle = 0
-        self.rollTargetTargetAngle = 0
-        self.sequencePosition = 0
-        self.isSetup = False
-        self.isHoming = False
-        self.fullTiltAngle = 80
-        self.fullRollAngle = 360
-        self.ramp_devisor = 12
-        self.pulse_devsor = 4
+        self.tiltTargetTargetAngle = int(0)
+        self.rollTargetTargetAngle = int(0)
+        self.sequencePosition = int(0)
+        self.isSetup = bool(False)
+        self.isHoming = bool(False)
+        self.fullTiltAngle = int(80)
+        self.fullRollAngle = int(360)
+        self.ramp_devisor = int(12)
+        self.pulse_devsor = int(4)
 
         #Master Controller has both end switches, switch the polarity for twinned 2 wire interrupt
         # self.rollMotorModule.set_axis_parameter(ap_type=TMCM1110.GP0.EndSwitchPolarity, value=1)
@@ -58,7 +62,7 @@ class ControllerSet():
 
     def setMotorModuleDefaults(self, _motorController:TMCM1110._MotorTypeA = None, isSlave:bool = False):
         _motorController.drive_settings.set_max_current(100)
-        _motorController.drive_settings.set_standby_current(50)
+        _motorController.drive_settings.set_standby_current(127)
         # _motorController.drive_settings.set_boost_current(30)     #Check this 
         _motorController.drive_settings.set_microstep_resolution(TMCM1110._MotorTypeA.ENUM.MicrostepResolution256Microsteps)  #U_STEP not
 
@@ -315,6 +319,58 @@ class ControllerSet():
 
         ##########################################################################################
 
+    def homeMotors3(self):
+        self.isHoming = True
+        self.stopMotors()
+        self.rollMotor.set_actual_position(position=0)
+        self.tiltMotor.set_actual_position(position=0)
+
+        self.disable_limit_switches(self.rollMotorModule, _axis = 1, _value = 0) 
+        self.rollMotorModule.set_global_parameter(gp_type=TMCM1110.GP0.EndSwitchPolarity, bank=0, value=1)
+
+        ##Home Roll
+        # self.rollDisc(_angle=-360, _velocity=HOME_VELOCITY, _accelleration=MAX_ACCELERATION)
+        while(self.rollMotorModule.get_digital_input(ROLL_HOME_GPI) == 1):
+            self.rollMotor.move_by(int(U_STEP))
+            self.tiltMotor.move_by(int(U_STEP))
+            # while(self.getIsMoving()):
+            #     pass
+        
+        self.stopMotors()
+        self.rollMotor.set_actual_position(position=0)
+        print("Found Roll Home, set as Zero")
+        ##########################################################################################
+
+        ##Home Tilt
+        #Master Controller has both end switches, switch the polarity for twinned 2 wire interrupt
+        self.tiltMotor.set_actual_position(0)
+        # homePath = self.angleToMicrostep(90)
+        homePath= int(U_STEP)
+        foundTiltHome = False
+        currentOrientation = self.tiltMotorModule.get_digital_input(TILT_HOME_GPI)
+        
+        if(currentOrientation == TILT_OPTICAL_IS_FORWARD):  #Go backwards if tilt is forward 
+            homePath *= -1
+
+        # self.tiltMotor.move_to(position=int(homePath), velocity=int(HOME_VELOCITY/2))
+        while(currentOrientation == self.tiltMotorModule.get_digital_input(TILT_HOME_GPI)):
+            self.tiltMotor.move_by(homePath)
+
+        self.tiltMotor.stop()
+        foundTiltHome = True
+        
+        if(foundTiltHome):
+            self.tiltMotor.set_actual_position(0)
+        else:
+            print("Hit Limit Stop, when trying to home Tilt")
+
+        ##########################################################################################
+
+    # def linearHomingUpdatotr(self) -> int:
+    #     if(self.isHoming):
+    #         if
+    #     return int(1)
+        
     def getPositionReached(self) -> bool:
         _ret = False
         if((self.tiltMotor.get_position_reached()) and (self.rollMotor.get_position_reached())):
