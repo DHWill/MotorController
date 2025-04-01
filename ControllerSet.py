@@ -7,14 +7,14 @@ ROLL_HOME_GPI = 1
 
 TILT_HOME_GPI = 1
 TILT_LIMIT_GPI = 2  #Hit Limit Switch (This should be in interrupt)
-TILT_OPTICAL_IS_BACK = 1
-TILT_OPTICAL_IS_FORWARD = 0
+TILT_OPTICAL_IS_BACK = 0
+TILT_OPTICAL_IS_FORWARD = 1
 
 STEP_ANGLE = 1.8
 U_STEP = 256
 FULL_STEP = (360. / STEP_ANGLE) * U_STEP
 MAX_VELOCITY = 1000
-MAX_ACCELERATION = 2000
+MAX_ACCELERATION = 1000
 
 HOME_VELOCITY = 500
 HOMING_NUDGE_ANGLE = 10
@@ -32,6 +32,20 @@ class ControllerSet():
         self.tiltMotor = self.rollMotorModule.motors[1]
         self.tiltMotorController = self.tiltMotorModule.motors[0] #Annoyingly, this class abstracts as axis0 only
 
+        self.armID = _armID
+        self.tiltTargetTargetAngle = int(0)
+        self.rollTargetTargetAngle = int(0)
+        self.sequencePosition = int(0)
+        self.isSetup = bool(False)
+        self.isHoming = bool(False)
+
+        self.fullTiltAngle = int(80)
+        self.fullRollAngle = int(360)
+        self.ramp_devisor = int(12)
+        self.pulse_devsor = int(4)
+        self.max_acceleration = int(1000)
+
+
         self.stopMotors()
         self.zeroMotors()
 
@@ -41,16 +55,6 @@ class ControllerSet():
         self.setControllerAxisRampDefaults(self.tiltMotor, isMaster=False)
         self.setControllerAxisRampDefaults(self.rollMotor, isMaster=True)
 
-        self.armID = _armID
-        self.tiltTargetTargetAngle = int(0)
-        self.rollTargetTargetAngle = int(0)
-        self.sequencePosition = int(0)
-        self.isSetup = bool(False)
-        self.isHoming = bool(False)
-        self.fullTiltAngle = int(80)
-        self.fullRollAngle = int(360)
-        self.ramp_devisor = int(12)
-        self.pulse_devsor = int(4)
 
         #Master Controller has both end switches, switch the polarity for twinned 2 wire interrupt
         # self.rollMotorModule.set_axis_parameter(ap_type=TMCM1110.GP0.EndSwitchPolarity, value=1)
@@ -61,14 +65,14 @@ class ControllerSet():
         _motorModule.set_axis_parameter(axis=_axis, ap_type=TMCM1110._MotorTypeA.AP.RightLimitSwitchDisable, value=_value)
 
     def setMotorModuleDefaults(self, _motorController:TMCM1110._MotorTypeA = None, isSlave:bool = False):
-        _motorController.drive_settings.set_max_current(100)
-        _motorController.drive_settings.set_standby_current(127)
+        _motorController.drive_settings.set_max_current(150)
+        _motorController.drive_settings.set_standby_current(150)
         # _motorController.drive_settings.set_boost_current(30)     #Check this 
-        _motorController.drive_settings.set_microstep_resolution(TMCM1110._MotorTypeA.ENUM.MicrostepResolution256Microsteps)  #U_STEP not
+        _motorController.drive_settings.set_microstep_resolution(TMCM1110._MotorTypeA.ENUM.MicrostepResolution256Microsteps)  #U_STEP n
 
-        _motorController.stallguard2.set_filter(enable_filter=1)
-        _motorController.stallguard2.set_threshold(20)
-        _motorController.stallguard2.set_stop_velocity(velocity=20)
+        # _motorController.stallguard2.set_threshold(20)        #Setting these add the stall guard back in 
+        # _motorController.stallguard2.set_stop_velocity(velocity=20)
+        _motorController.stallguard2.set_filter(enable_filter=0)
 
         if(isSlave):
             _motorController.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.StepDirectionMode, value=1)
@@ -83,7 +87,8 @@ class ControllerSet():
 
         #These are tuned for light velocity/acelleration headroom.
         _motorController.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.RampDivisor, value=12)
-        _motorController.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.PulseDivisor, value=4)  
+        _motorController.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.PulseDivisor, value=4)
+        _motorController.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.MaxAcceleration, value=self.max_acceleration)
         
 
     def angleToMicrostep(self, angle) -> int:
@@ -116,19 +121,19 @@ class ControllerSet():
     def setMaxAcceleration(self, _axis:int=0, _value:int=0):
         return self.rollMotorModule.set_axis_parameter(ap_type=TMCM1110._MotorTypeA.AP.MaxAcceleration, axis=_axis,signed=False, value=_value)
     
-    def setTargetRotationAngle(self, _rollAngle:float = 0, _tiltAngle:float = 0, _velocity:int = 100, _acceleration:int = 50):
+    def setTargetRotationAngle(self, _rollAngle:float = 0, _tiltAngle:float = 0, _velocity:int = 100, _acceleration:int = 50) -> None:
         
         # Clipping to 'fullRotationAngle' (distance between limit switch left/right)
         tiltCentreAngle = self.fullTiltAngle / 2.
         rollCentreAngle = self.fullRollAngle / 2.
         tiltAngle = max(min(_tiltAngle, tiltCentreAngle), tiltCentreAngle * -1) 
-        rollAngle = max(min(_rollAngle, rollCentreAngle), rollCentreAngle * -1) 
+        # rollAngle = max(min(_rollAngle, rollCentreAngle), rollCentreAngle * -1) 
 
         # _rollAngle = rollCentreAngle + rollAngle 
         # _tiltAngle = tiltCentreAngle + tiltAngle
 
         _tiltAngle = tiltAngle
-        _rollAngle = rollAngle
+        # _rollAngle = rollAngle
 
         _tiltAngle += _rollAngle     #roll is Master, and locked on axis
 
@@ -145,7 +150,7 @@ class ControllerSet():
         rollStepDistance = abs(self.angleToMicrostep(_rollAngle) - currentRollStep)
 
         #Match Up speeds
-        mult = 1
+        mult = 1.
         if(rollStepDistance > tiltStepDistance):
             mult = (tiltStepDistance / rollStepDistance)
             _tiltVelocity = _velocity * mult
@@ -156,24 +161,18 @@ class ControllerSet():
             _rollVelocity = _velocity * mult
             _rollAcceleration = _acceleration * mult
 
-        self.rollMotor.linear_ramp.set_max_acceleration(int(_rollAcceleration))
-        self.tiltMotor.linear_ramp.set_max_acceleration(int(_tiltAcceleration))
-        self.rollMotor.move_to(position= int(self.angleToMicrostep(_rollAngle)), velocity=int(_rollVelocity))
-        self.tiltMotor.move_to(position= int(self.angleToMicrostep(_tiltAngle)), velocity=int(_tiltVelocity))
+        if(rollStepDistance > 0):
+            self.rollMotor.linear_ramp.set_max_acceleration(int(_rollAcceleration))
+            self.rollMotor.move_to(position= int(self.angleToMicrostep(_rollAngle)), velocity=int(_rollVelocity))
+        
+        if(tiltStepDistance > 0):
+            self.tiltMotor.linear_ramp.set_max_acceleration(int(_tiltAcceleration))
+            self.tiltMotor.move_to(position= int(self.angleToMicrostep(_tiltAngle)), velocity=int(_tiltVelocity))
+        
 
         #Remove This to be NON-blocking for multi arm programming
         # while((self.rollMotor.getIsPositionReached() == False) or (self.tiltMotor.getIsPositionReached() == False)):
         #     pass
-
-
-    def setArmLimitSwitches(self, _isLimiting:bool = False):
-        pass
-
-
-
-
-
-
 
   #  # Example usage:
   #  current_position = 0
@@ -325,14 +324,15 @@ class ControllerSet():
         self.rollMotor.set_actual_position(position=0)
         self.tiltMotor.set_actual_position(position=0)
 
-        self.disable_limit_switches(self.rollMotorModule, _axis = 1, _value = 0) 
+        self.disable_limit_switches(self.rollMotorModule, _axis = 1, _value = 1) 
         self.rollMotorModule.set_global_parameter(gp_type=TMCM1110.GP0.EndSwitchPolarity, bank=0, value=1)
 
         ##Home Roll
         # self.rollDisc(_angle=-360, _velocity=HOME_VELOCITY, _accelleration=MAX_ACCELERATION)
         while(self.rollMotorModule.get_digital_input(ROLL_HOME_GPI) == 1):
-            self.rollMotor.move_by(int(U_STEP))
-            self.tiltMotor.move_by(int(U_STEP))
+            self.rollMotor.move_by(int(U_STEP*-2))
+            self.tiltMotor.move_by(int(U_STEP*-2))
+            # self.rollMotor.coolstep.calibrate()
             # while(self.getIsMoving()):
             #     pass
         
@@ -345,22 +345,25 @@ class ControllerSet():
         #Master Controller has both end switches, switch the polarity for twinned 2 wire interrupt
         self.tiltMotor.set_actual_position(0)
         # homePath = self.angleToMicrostep(90)
-        homePath= int(U_STEP)
+        direction= 1
+        path = int(U_STEP)
         foundTiltHome = False
         currentOrientation = self.tiltMotorModule.get_digital_input(TILT_HOME_GPI)
         
         if(currentOrientation == TILT_OPTICAL_IS_FORWARD):  #Go backwards if tilt is forward 
-            homePath *= -1
+            direction *= -1
 
         # self.tiltMotor.move_to(position=int(homePath), velocity=int(HOME_VELOCITY/2))
         while(currentOrientation == self.tiltMotorModule.get_digital_input(TILT_HOME_GPI)):
-            self.tiltMotor.move_by(homePath)
+            self.tiltMotor.move_by(path * direction)
+            # self.tiltMotorModule.motors[0].coolstep.calibrate()
 
         self.tiltMotor.stop()
         foundTiltHome = True
         
         if(foundTiltHome):
             self.tiltMotor.set_actual_position(0)
+            print("Found Home")
         else:
             print("Hit Limit Stop, when trying to home Tilt")
 

@@ -6,13 +6,14 @@ from pytrinamic.modules import TMCM1110
 from ControllerSet import ControllerSet
 
 class MotorDataRequest:
-    def __init__(self, plotLabel: str, axis_parameter: str, axis_parameter_max: str, is_module_request: bool = False):
-        self.plotLabel = plotLabel
-        self.axis_parameter = axis_parameter
-        self.axis_parameter_max = axis_parameter_max
-        self.is_module_request = is_module_request
+    def __init__(self, _plotLabel: str, _axis_parameter: str, _axis_parameter_max: str, _is_module_request: bool = False, _reply_is_signed:bool=True):
+        self.plotLabel = _plotLabel
+        self.axis_parameter = _axis_parameter
+        self.axis_parameter_max = _axis_parameter_max
+        self.is_module_request = _is_module_request
         self.axis_parameter_max_value = 1
         self.scalar = 1.
+        self.reply_is_signed = _reply_is_signed
         # self.yData = [0] * BUFFER_SIZE 
         self.yData = []
         self.xData = []
@@ -21,15 +22,15 @@ class Visual():
     def __init__(self, fps:int = 20) -> None:
         self.roll_data_requests = [
             # ControllerDataType("position", TMCM1110._MotorTypeA.AP.ActualPosition, False),
-            MotorDataRequest("roll.current", TMCM1110._MotorTypeA.AP.SmartEnergyActualCurrent, TMCM1110._MotorTypeA.AP.MaxCurrent, True),
-            MotorDataRequest("roll.velocity", TMCM1110._MotorTypeA.AP.ActualVelocity, TMCM1110._MotorTypeA.AP.MaxVelocity, False),
-            MotorDataRequest("roll.acceleration", TMCM1110._MotorTypeA.AP.ActualAcceleration, TMCM1110._MotorTypeA.AP.MaxAcceleration, False)
+            MotorDataRequest(_plotLabel="roll.current", _axis_parameter=TMCM1110._MotorTypeA.AP.SmartEnergyActualCurrent, _axis_parameter_max=TMCM1110._MotorTypeA.AP.MaxCurrent, _is_module_request=True, _reply_is_signed=False),
+            MotorDataRequest(_plotLabel="roll.velocity", _axis_parameter=TMCM1110._MotorTypeA.AP.ActualVelocity, _axis_parameter_max=TMCM1110._MotorTypeA.AP.MaxVelocity, _is_module_request=False, _reply_is_signed=False),
+            MotorDataRequest(_plotLabel="roll.acceleration", _axis_parameter=TMCM1110._MotorTypeA.AP.ActualAcceleration, _axis_parameter_max=TMCM1110._MotorTypeA.AP.MaxAcceleration, _is_module_request=False, _reply_is_signed=False)
         ]
         
         self.tilt_data_requests = [
-            MotorDataRequest("tilt.current", TMCM1110._MotorTypeA.AP.SmartEnergyActualCurrent, TMCM1110._MotorTypeA.AP.MaxCurrent, True),
-            MotorDataRequest("tilt.velocity", TMCM1110._MotorTypeA.AP.ActualVelocity, TMCM1110._MotorTypeA.AP.MaxVelocity, False),
-            MotorDataRequest("tilt.acceleration", TMCM1110._MotorTypeA.AP.ActualAcceleration, TMCM1110._MotorTypeA.AP.MaxAcceleration, False)
+            MotorDataRequest("tilt.current", _axis_parameter=TMCM1110._MotorTypeA.AP.SmartEnergyActualCurrent, _axis_parameter_max=TMCM1110._MotorTypeA.AP.MaxCurrent, _is_module_request=True, _reply_is_signed=False),
+            MotorDataRequest("tilt.velocity", _axis_parameter=TMCM1110._MotorTypeA.AP.ActualVelocity, _axis_parameter_max=TMCM1110._MotorTypeA.AP.MaxVelocity, _is_module_request=False, _reply_is_signed=False),
+            MotorDataRequest("tilt.acceleration", _axis_parameter=TMCM1110._MotorTypeA.AP.ActualAcceleration, _axis_parameter_max=TMCM1110._MotorTypeA.AP.MaxAcceleration, _is_module_request=False, _reply_is_signed=False)
         ]
         # self.lock = threading.Lock()
         # self.controller_set = [self.rollData, self.tiltData]
@@ -55,17 +56,17 @@ class Visual():
     def controller_data_request(self, controller:TMCM1110._MotorTypeA, data_request: MotorDataRequest, update_max_params = False) -> int:
         value = 0
         if(update_max_params):
-            data_request.axis_parameter_max_value = controller.get_axis_parameter(ap_type=data_request.axis_parameter_max, signed=True)
+            data_request.axis_parameter_max_value = controller.get_axis_parameter(ap_type=data_request.axis_parameter_max, signed=data_request.reply_is_signed)
         else:
-            value = controller.get_axis_parameter(ap_type=data_request.axis_parameter, signed=True) / data_request.axis_parameter_max_value
+            value = controller.get_axis_parameter(ap_type=data_request.axis_parameter, signed=data_request.reply_is_signed) / data_request.axis_parameter_max_value
         return value
 
     def module_data_request(self, module:TMCM1110, data_request: MotorDataRequest, update_max_params = False) -> int:
         value = 0
         if(update_max_params):
-            data_request.axis_parameter_max_value = module.get_axis_parameter(axis=0, ap_type=data_request.axis_parameter_max, signed=True)
+            data_request.axis_parameter_max_value = module.get_axis_parameter(axis=0, ap_type=data_request.axis_parameter_max, signed=data_request.reply_is_signed)
         else:
-            value = module.get_axis_parameter(axis=0, ap_type=data_request.axis_parameter, signed=True) / data_request.axis_parameter_max_value
+            value = module.get_axis_parameter(axis=0, ap_type=data_request.axis_parameter, signed=data_request.reply_is_signed) / data_request.axis_parameter_max_value
         return value
     
 

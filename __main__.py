@@ -55,27 +55,27 @@ if(__name__ == "__main__"):
 
 
     # gui.set_motor(controllerSet1.rollMotor)``
-    gui.start_plot()
+#     gui.start_plot()
     
-    test = 0
-    while(True):
-#        print("Tilt: ", controllerSet1.tiltMotorModule.get_digital_input(1))
-#        print("Roll: ", controllerSet1.rollMotorModule.get_digital_input(1))
-        print("Test: ", test)
-        print("homing")
-        controllerSet1.homeMotors3()
+#     test = 0
+#     while(True):
+# #        print("Tilt: ", controllerSet1.tiltMotorModule.get_digital_input(1))
+# #        print("Roll: ", controllerSet1.rollMotorModule.get_digital_input(1))
+#         print("Test: ", test)
+#         print("homing")
     
-        test += 1
-        # ra, ta, vel, accel = rotationSequences2[random.randrange(0, len(rotationSequences2) -1)]
-        ra = random.randrange(0, 720)
-        ta = random.randrange(-45, 45)
-        print("Random Position", ra, ta)
-        controllerSet1.setTargetRotationAngle(_rollAngle=ra, _tiltAngle=ta, _velocity=1000, _acceleration=500)
-        while(controllerSet1.getIsMoving()):
-            gui.get_data(controllerSet1)
+#         test += 1
+#         # ra, ta, vel, accel = rotationSequences2[random.randrange(0, len(rotationSequences2) -1)]
+#         ra = random.randrange(0, 720)
+#         ta = random.randrange(-45, 45)
+#         print("Random Position", ra, ta)
+#         controllerSet1.setTargetRotationAngle(_rollAngle=ra, _tiltAngle=ta, _velocity=1000, _acceleration=500)
+#         while(controllerSet1.getIsMoving()):
+#             gui.get_data(controllerSet1)
     
     
     # controllerSet1.rollDisc(_angle =-(360 * 2), _velocity =1000, _accelleration=2000)
+    # controllerSet1.homeMotors3()
 
     while(controllerSet1.getIsMoving()):
         gui.get_data(controllerSet1)
@@ -87,9 +87,10 @@ if(__name__ == "__main__"):
 
     while True:
         for sequence in range(len(rotationSequences2)):
-            time.sleep(1)
+            # time.sleep(1)
+            controllerSet1.homeMotors3()
             ra, ta, vel, accel = rotationSequences2[sequence]
-            print("_rollAngle: ", ra, "_tiltAngle: ", ta, " _speed: ", vel, "_acceleration: ", accel)
+            print("_rollAngle: ", ra, "_tiltAngle: ", ta, " _velocity: ", vel, "_acceleration: ", accel)
             controllerSet1.setTargetRotationAngle(_rollAngle=ra, _tiltAngle=ta, _velocity=vel, _acceleration=accel)
             controllerSet1.sequencePosition += 1 
             controllerSet1.sequencePosition %= len(rotationSequences2)
