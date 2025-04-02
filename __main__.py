@@ -5,14 +5,14 @@ from pytrinamic.modules import TMCM1110
 from GUI.visualTool import Visual
 import threading
 import time
-from RotationSequences.DemoSequences import rotationSequences2
+from RotationSequences.DemoSequences import rotationSequences2, facingSequence
 import random
 
 
 #Master ID is 2 start from 3:
 #3 -> 256
 NODE_ID_START = 3
-NODE_ID_END = 5
+NODE_ID_END = 6
 
 def get_paired_motors_on_bus(bus_connection:ConnectionManager = None) -> list[ControllerSet]:
     print(bus_connection)
@@ -39,46 +39,36 @@ def get_paired_motors_on_bus(bus_connection:ConnectionManager = None) -> list[Co
 
 
 def wait_all_inposition(_connected_arms:list[ControllerSet]):
-    for arm in _connected_arms:
-        arm.waitPositionReached()
+    still_moving = True
+    while still_moving:
+        for arm in _connected_arms:
+            still_moving = False
+            if(arm.getPositionReached() == False):
+                still_moving = True
+                break
+
+
+
 
 
 if(__name__ == "__main__"):
     interface = ConnectionManager("--interface serial_tmcl --port COM36 --data-rate 9600")
     interface_connection = interface.connect()
     connected_arms = get_paired_motors_on_bus(bus_connection=interface_connection)
-    controllerSet1 = connected_arms[0]
+    # controllerSet1 = connected_arms[0]
+
+    for disc in connected_arms:
+        disc.homeMotors3()
     
-    gui = Visual()
-    guiThread = threading.Thread(target=gui.init_gui)
-    guiThread.start()
+
+    
+    # gui = Visual()
+    # guiThread = threading.Thread(target=gui.init_gui)
+    # guiThread.start()
 
 
     # gui.set_motor(controllerSet1.rollMotor)``
 #     gui.start_plot()
-    
-#     test = 0
-#     while(True):
-# #        print("Tilt: ", controllerSet1.tiltMotorModule.get_digital_input(1))
-# #        print("Roll: ", controllerSet1.rollMotorModule.get_digital_input(1))
-#         print("Test: ", test)
-#         print("homing")
-    
-#         test += 1
-#         # ra, ta, vel, accel = rotationSequences2[random.randrange(0, len(rotationSequences2) -1)]
-#         ra = random.randrange(0, 720)
-#         ta = random.randrange(-45, 45)
-#         print("Random Position", ra, ta)
-#         controllerSet1.setTargetRotationAngle(_rollAngle=ra, _tiltAngle=ta, _velocity=1000, _acceleration=500)
-#         while(controllerSet1.getIsMoving()):
-#             gui.get_data(controllerSet1)
-    
-    
-    # controllerSet1.rollDisc(_angle =-(360 * 2), _velocity =1000, _accelleration=2000)
-    # controllerSet1.homeMotors3()
-
-    while(controllerSet1.getIsMoving()):
-        gui.get_data(controllerSet1)
     
     
     # while True:
@@ -86,13 +76,19 @@ if(__name__ == "__main__"):
     #     # print("Velocity", controllerSet1.rollMotor.get_actual_velocity())
 
     while True:
-        for sequence in range(len(rotationSequences2)):
-            # time.sleep(1)
-            controllerSet1.homeMotors3()
-            ra, ta, vel, accel = rotationSequences2[sequence]
+        #random sequences
+        for randomSequence in range(3):
+           wait_all_inposition(connected_arms)
+           for disc in connected_arms:
+                nSeq = random.randrange(0, len(rotationSequences2))
+                ra, ta, vel, accel = rotationSequences2[nSeq]
+                print("_rollAngle: ", ra, "_tiltAngle: ", ta, " _velocity: ", vel, "_acceleration: ", accel)
+                disc.setTargetRotationAngle(_rollAngle=ra, _tiltAngle=ta, _velocity=vel, _acceleration=accel)
+        
+        #facing sequence
+        wait_all_inposition(connected_arms)
+        for disc in connected_arms:
+            ra, ta, vel, accel = facingSequence[disc.armID]
             print("_rollAngle: ", ra, "_tiltAngle: ", ta, " _velocity: ", vel, "_acceleration: ", accel)
-            controllerSet1.setTargetRotationAngle(_rollAngle=ra, _tiltAngle=ta, _velocity=vel, _acceleration=accel)
-            controllerSet1.sequencePosition += 1 
-            controllerSet1.sequencePosition %= len(rotationSequences2)
-            while(controllerSet1.getIsMoving()):
-                gui.get_data(controllerSet1)
+            disc.setTargetRotationAngle(_rollAngle=ra, _tiltAngle=ta, _velocity=500, _acceleration=1000)
+            

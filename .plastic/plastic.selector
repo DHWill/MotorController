@@ -1,0 +1,4 @@
+repository "Horrowitz_Motor-Control@10.12.1.33:8087"
+  path "/"
+    br "/main"
+    co "/main"

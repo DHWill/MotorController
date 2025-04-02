@@ -65,8 +65,8 @@ class ControllerSet():
         _motorModule.set_axis_parameter(axis=_axis, ap_type=TMCM1110._MotorTypeA.AP.RightLimitSwitchDisable, value=_value)
 
     def setMotorModuleDefaults(self, _motorController:TMCM1110._MotorTypeA = None, isSlave:bool = False):
-        _motorController.drive_settings.set_max_current(150)
-        _motorController.drive_settings.set_standby_current(150)
+        _motorController.drive_settings.set_max_current(255)
+        _motorController.drive_settings.set_standby_current(255)
         # _motorController.drive_settings.set_boost_current(30)     #Check this 
         _motorController.drive_settings.set_microstep_resolution(TMCM1110._MotorTypeA.ENUM.MicrostepResolution256Microsteps)  #U_STEP n
 
