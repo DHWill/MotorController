@@ -65,8 +65,8 @@ class ControllerSet():
         _motorModule.set_axis_parameter(axis=_axis, ap_type=TMCM1110._MotorTypeA.AP.RightLimitSwitchDisable, value=_value)
 
     def setMotorModuleDefaults(self, _motorController:TMCM1110._MotorTypeA = None, isSlave:bool = False):
-        _motorController.drive_settings.set_max_current(255)
-        _motorController.drive_settings.set_standby_current(255)
+        _motorController.drive_settings.set_max_current(250)
+        _motorController.drive_settings.set_standby_current(250)
         # _motorController.drive_settings.set_boost_current(30)     #Check this 
         _motorController.drive_settings.set_microstep_resolution(TMCM1110._MotorTypeA.ENUM.MicrostepResolution256Microsteps)  #U_STEP n
 
@@ -104,6 +104,11 @@ class ControllerSet():
     
     def get_roll_axis_parameter(self, ap_type:int = None):
         self.rollMotor.get_axis_parameter()
+
+    def get_set_angles(self) -> float:
+        ra = self.microstepToAngle(self.getActualPosition(self.rollMotor))
+        ta = self.microstepToAngle(self.getActualPosition(self.tiltMotor))
+        return (ra, ta)
 
 
     #This Takes ANGLE in Degrees relative to centre reference (0, 0) 
@@ -377,7 +382,7 @@ class ControllerSet():
     def getPositionReached(self) -> bool:
         _ret = False
         if((self.tiltMotor.get_position_reached()) and (self.rollMotor.get_position_reached())):
-            print("Position Reached")
+            # print("Position Reached")
             _ret = True
         elif(self.getIsMoving() == False):
             print("Not Moving")

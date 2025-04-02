@@ -1,4 +1,4 @@
-repository "Horrowitz_Motor-Control@10.12.1.33:8087"
+repository "Horrowitz_Motor-Control@ssl://DELL-R250-SW-PL:8088"
   path "/"
     br "/main"
     co "/main"
